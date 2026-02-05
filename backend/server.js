@@ -29,10 +29,12 @@ app.post("/encrypt", (req, res) => {
     cipher.final(),
   ]);
 
-  const encryptedPath = path.join(
-    encryptedDir,
-    filename + ".enc"
-  );
+  const uniqueSuffix = Date.now() + "-" + crypto.randomBytes(4).toString("hex");
+
+  const encryptedFileName = `${filename}.${uniqueSuffix}.enc`;
+
+  const encryptedPath = path.join(encryptedDir, encryptedFileName);
+
 
   fs.writeFileSync(encryptedPath, encryptedData);
 
