@@ -10,15 +10,11 @@ The project focuses on **Phase 1**:
 
 Decryption is intentionally excluded and planned for **Phase 2**.
 
----
-
 ## Objectives
 - Understand how OS handles secure I/O
 - Encrypt data without storing plaintext on disk
 - Apply OS-level file permissions
 - Demonstrate access control using cryptographic keys
-
----
 
 ## OS Principles Applied
 
@@ -30,8 +26,6 @@ Decryption is intentionally excluded and planned for **Phase 2**.
 | File System Security | Encrypted files stored with restricted permissions |
 | Access Control | Private key required for future decryption |
 | Least Privilege | Only encrypted files are persisted |
-
----
 
 ## Project Structure
 os_project/
