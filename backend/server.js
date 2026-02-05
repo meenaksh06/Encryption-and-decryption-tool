@@ -9,7 +9,7 @@ app.use(
   express.raw({
     type: "*/*",
     limit: "10mb",
-  })
+  }),
 );
 
 const encryptedDir = path.join(__dirname, "encrypted");
@@ -18,6 +18,12 @@ fs.chmodSync(encryptedDir, 0o755);
 
 app.post("/encrypt", (req, res) => {
   const filename = req.headers["x-filename"];
+
+  if (!filename || !req.body || req.body.length === 0) {
+    return res.status(400).json({
+      error: "File data or filename missing",
+    });
+  }
 
   const privateKey = crypto.randomBytes(32);
   const iv = crypto.randomBytes(16);
@@ -34,7 +40,6 @@ app.post("/encrypt", (req, res) => {
   const encryptedFileName = `${filename}.${uniqueSuffix}.enc`;
 
   const encryptedPath = path.join(encryptedDir, encryptedFileName);
-
 
   fs.writeFileSync(encryptedPath, encryptedData);
 
