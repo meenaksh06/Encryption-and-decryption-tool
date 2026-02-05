@@ -1,71 +1,223 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Secure File Encryption</title>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure File Encryption</title>
 
-  <!-- React CDN -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 
-  <!-- Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
-<body>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <div id="root"></div>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
 
-  <script type="text/babel">
-    function App() {
-      const [file, setFile] = React.useState(null);
-      const [key, setKey] = React.useState("");
-      const [iv, setIv] = React.useState("");
+      body {
+        margin: 0;
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+      }
 
-      const encryptFile = async () => {
-        const formData = new FormData();
-        formData.append("file", file);
+      .container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
 
-        const res = await fetch("http://localhost:5000/encrypt", {
-          method: "POST",
-          body: formData
-        });
+      .card {
+        background: #ffffff;
+        width: 100%;
+        max-width: 420px;
+        border-radius: 14px;
+        padding: 32px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      }
 
-        const data = await res.json();
-        setKey(data.privateKey);
-        setIv(data.iv);
-      };
+      .title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
 
-      return (
-        <div style={{ padding: "40px", fontFamily: "Arial" }}>
-          <h2>Secure File Encryption Tool</h2>
+      .subtitle {
+        font-size: 14px;
+        color: #64748b;
+        margin-bottom: 24px;
+      }
 
-          <input
-            type="file"
-            onChange={(e) => setFile(e.target.files[0])}
-          />
+      .file-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 10px;
+        background: #f8fafc;
+      }
 
-          <br /><br />
+      .button {
+        margin-top: 20px;
+        width: 100%;
+        padding: 12px;
+        background: #0f172a;
+        color: #ffffff;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+      }
 
-          <button onClick={encryptFile}>
-            Encrypt File
-          </button>
+      .button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
 
-          {key && (
-            <div style={{ marginTop: "20px" }}>
-              <p><b>Private Key:</b></p>
-              <p>{key}</p>
+      .result {
+        margin-top: 24px;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+      }
 
-              <p><b>IV:</b></p>
-              <p>{iv}</p>
+      .label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        margin-top: 12px;
+      }
+
+      .value {
+        font-size: 12px;
+        word-break: break-all;
+        margin-top: 4px;
+      }
+
+      .clear-btn {
+        margin-top: 12px;
+        background: none;
+        border: none;
+        color: #64748b;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .footer-note {
+        margin-top: 16px;
+        font-size: 11px;
+        color: #94a3b8;
+        text-align: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      function App() {
+        console.log("APP MOUNTED", Date.now());
+
+        const [file, setFile] = React.useState(null);
+        const [key, setKey] = React.useState(
+          localStorage.getItem("enc_key") || "",
+        );
+        const [iv, setIv] = React.useState(
+          localStorage.getItem("enc_iv") || "",
+        );
+        const [loading, setLoading] = React.useState(false);
+
+        const encryptFile = async () => {
+          if (!file) return;
+
+          setLoading(true);
+
+          try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await fetch("http://localhost:8080/encrypt", {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await res.json();
+
+            localStorage.setItem("enc_key", data.privateKey);
+            localStorage.setItem("enc_iv", data.iv);
+
+            setKey(data.privateKey);
+            setIv(data.iv);
+          } catch (err) {
+            console.error("Encryption failed:", err);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        const clearKeys = () => {
+          localStorage.removeItem("enc_key");
+          localStorage.removeItem("enc_iv");
+          setKey("");
+          setIv("");
+        };
+
+        return (
+          <div className="container">
+            <div className="card">
+              <div className="title">Secure File Encryption</div>
+              <div className="subtitle">
+                Upload a file to encrypt it securely using AES encryption.
+              </div>
+
+              <input
+                type="file"
+                className="file-input"
+                onChange={(e) => setFile(e.target.files[0])}
+              />
+
+              <button
+                type="button"
+                className="button"
+                disabled={!file || loading}
+                onClick={encryptFile}
+              >
+                {loading ? "Encrypting..." : "Encrypt File"}
+              </button>
+
+              {key && (
+                <div className="result">
+                  <div className="label">Private Key</div>
+                  <div className="value">{key}</div>
+
+                  <div className="label">Initialization Vector (IV)</div>
+                  <div className="value">{iv}</div>
+
+                  <button className="clear-btn" onClick={clearKeys}>
+                    Clear keys
+                  </button>
+                </div>
+              )}
+
+              <div className="footer-note">
+                Keys are stored locally in your browser.
+              </div>
             </div>
-          )}
-        </div>
-      );
-    }
+          </div>
+        );
+      }
 
-    ReactDOM.createRoot(document.getElementById("root"))
-      .render(<App />);
-  </script>
-
-</body>
+      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    </script>
+  </body>
 </html>
