@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Secure File Encryption</title>
+
+  <!-- React CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    function App() {
+      const [file, setFile] = React.useState(null);
+      const [key, setKey] = React.useState("");
+      const [iv, setIv] = React.useState("");
+
+      const encryptFile = async () => {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("http://localhost:5000/encrypt", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+        setKey(data.privateKey);
+        setIv(data.iv);
+      };
+
+      return (
+        <div style={{ padding: "40px", fontFamily: "Arial" }}>
+          <h2>Secure File Encryption Tool</h2>
+
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files[0])}
+          />
+
+          <br /><br />
+
+          <button onClick={encryptFile}>
+            Encrypt File
+          </button>
+
+          {key && (
+            <div style={{ marginTop: "20px" }}>
+              <p><b>Private Key:</b></p>
+              <p>{key}</p>
+
+              <p><b>IV:</b></p>
+              <p>{iv}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root"))
+      .render(<App />);
+  </script>
+
+</body>
+</html>
