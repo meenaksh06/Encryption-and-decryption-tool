@@ -8,6 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const { secureDelete } = require("./secureDelete");
 const cors = require("cors");
+const { audit } = require("./audit");
 
 const app = express();
 
@@ -69,18 +70,19 @@ app.post("/encrypt", (req, res) => {
   // only the owner should be able to read/write the encrypted file
   fs.chmodSync(encryptedPath, 0o600);
 
-  // audit log — important for OS security: confirms we never wrote the
-  // plaintext to a temp file, everything stayed in RAM
-  console.log(
-    `[secure] No temp plaintext on disk for "${filename}" — in-memory only | SHA-256: ${originalHash}`,
-  );
+  audit("ENCRYPT", req, "SUCCESS", {
+    filename,
+    encryptedFileName,
+    sizeBytes: req.body.length,
+    sha256: originalHash,
+    note: "plaintext never written to disk — in-memory only",
+  });
 
   res.status(200).json({
     message: "File encrypted successfully",
     privateKey: privateKey.toString("hex"),
     iv: iv.toString("hex"),
     encryptedFileName,
-    // send the hash back so the client can store it and verify after decryption
     sha256: originalHash,
     secureNote:
       "No plaintext was written to disk — data processed in-memory only.",
@@ -98,6 +100,10 @@ app.post("/decrypt", (req, res) => {
   const originalFilename = req.headers["x-filename"] || "decrypted_file";
 
   if (!keyHex || !ivHex || !req.body || req.body.length === 0) {
+    audit("DECRYPT", req, "REJECTED", {
+      filename: originalFilename,
+      reason: "missing key, IV, or file body",
+    });
     return res.status(400).json({
       error: "Encrypted file data, private key, or IV missing",
     });
@@ -109,11 +115,19 @@ app.post("/decrypt", (req, res) => {
     // A 32-byte AES-256 key = 64 hex chars; a 16-byte IV = 32 hex chars.
     // Field-specific errors here are far clearer than a generic cipher failure.
     if (keyHex.length !== 64) {
+      audit("DECRYPT", req, "REJECTED", {
+        filename: originalFilename,
+        reason: `invalid key length: got ${keyHex.length} hex chars, expected 64`,
+      });
       return res.status(400).json({
         error: `Invalid key length: got ${keyHex.length} hex characters, expected 64 (= 32 bytes). Use the full key from encryption.`,
       });
     }
     if (ivHex.length !== 32) {
+      audit("DECRYPT", req, "REJECTED", {
+        filename: originalFilename,
+        reason: `invalid IV length: got ${ivHex.length} hex chars, expected 32`,
+      });
       return res.status(400).json({
         error: `Invalid IV length: got ${ivHex.length} hex characters, expected 32 (= 16 bytes). Use the full IV from encryption.`,
       });
@@ -125,11 +139,19 @@ app.post("/decrypt", (req, res) => {
     // byte-level sanity check — non-hex characters cause Node to silently
     // produce a shorter buffer (e.g. "zz" decodes to 0 bytes), so we catch that here
     if (key.length !== 32) {
+      audit("DECRYPT", req, "REJECTED", {
+        filename: originalFilename,
+        reason: "key contains non-hex characters (buffer underflow)",
+      });
       return res.status(400).json({
         error: "Key contains invalid hex characters. Expected a 64-character hexadecimal string (0-9, a-f).",
       });
     }
     if (iv.length !== 16) {
+      audit("DECRYPT", req, "REJECTED", {
+        filename: originalFilename,
+        reason: "IV contains non-hex characters (buffer underflow)",
+      });
       return res.status(400).json({
         error: "IV contains invalid hex characters. Expected a 32-character hexadecimal string (0-9, a-f).",
       });
@@ -155,12 +177,18 @@ app.post("/decrypt", (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${originalFilename}"`);
     res.setHeader("Content-Type", "application/octet-stream");
 
-    console.log(
-      `[integrity] Decrypted "${originalFilename}" | SHA-256: ${decryptedHash}`,
-    );
+    audit("DECRYPT", req, "SUCCESS", {
+      filename: originalFilename,
+      sizeBytes: decryptedData.length,
+      sha256: decryptedHash,
+    });
 
     res.status(200).send(decryptedData);
   } catch (err) {
+    audit("DECRYPT", req, "FAILURE", {
+      filename: originalFilename,
+      reason: err.message || "cipher error — wrong key or IV",
+    });
     res.status(400).json({
       error: "Decryption failed. Check that the key and IV are correct.",
     });
@@ -197,16 +225,21 @@ app.post("/secure-delete", (req, res) => {
 
   try {
     const result = secureDelete(resolved);
-    console.log(
-      `[secure-delete] Wiped "${filename}": ${result.passes} passes, ${result.bytesOverwritten} bytes overwritten`,
-    );
+    audit("SECURE_DELETE", req, "SUCCESS", {
+      filename,
+      passes: result.passes,
+      bytesOverwritten: result.bytesOverwritten,
+    });
     res.status(200).json({
       message: "File securely deleted",
       passes: result.passes,
       bytesOverwritten: result.bytesOverwritten,
     });
   } catch (err) {
-    console.error(`[secure-delete] Failed to delete "${filename}":`, err);
+    audit("SECURE_DELETE", req, "FAILURE", {
+      filename,
+      reason: err.message,
+    });
     res.status(500).json({ error: "Secure delete failed: " + err.message });
   }
 });
