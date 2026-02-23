@@ -49,7 +49,6 @@ app.post("/encrypt", (req, res) => {
 
   fs.chmodSync(encryptedPath, 0o600);
 
-  // Audit log: confirm no temporary plaintext was written to disk
   console.log(
     `[secure] No temp plaintext written to disk for "${filename}" — data processed in-memory only.`,
   );
@@ -69,11 +68,11 @@ app.post("/decrypt", (req, res) => {
   const ivHex = req.headers["x-iv"];
   const originalFilename = req.headers["x-filename"] || "decrypted_file";
 
-  // if (!keyHex || !ivHex || !req.body || req.body.length === 0) {
-  //   return res.status(400).json({
-  //     error: "Encrypted file data, private key, or IV missing",
-  //   });
-  // }
+  if (!keyHex || !ivHex || !req.body || req.body.length === 0) {
+    return res.status(400).json({
+      error: "Encrypted file data, private key, or IV missing",
+    });
+  }
 
   try {
     const key = Buffer.from(keyHex, "hex");
@@ -102,7 +101,6 @@ app.post("/decrypt", (req, res) => {
   }
 });
 
-// ── Secure Delete endpoint ──
 app.post("/secure-delete", (req, res) => {
   const filename = req.headers["x-filename"];
 
@@ -110,12 +108,10 @@ app.post("/secure-delete", (req, res) => {
     return res.status(400).json({ error: "Filename header (x-filename) is required" });
   }
 
-  // Only allow .enc files
   if (!filename.endsWith(".enc")) {
     return res.status(400).json({ error: "Only .enc files can be securely deleted" });
   }
-
-  // Path-traversal guard: resolve and verify it stays inside encryptedDir
+  
   const resolved = path.resolve(encryptedDir, path.basename(filename));
   if (!resolved.startsWith(encryptedDir)) {
     return res.status(403).json({ error: "Path traversal detected — access denied" });
