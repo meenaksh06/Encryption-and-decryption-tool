@@ -19,7 +19,7 @@ function secureDelete(filePath, passes = 3) {
   const fd = fs.openSync(filePath, "r+");
   const { size } = fs.fstatSync(fd);
 
-  // nothing to overwrite for empty files, just remove it
+  // removing here empty files
   if (size === 0) {
     fs.closeSync(fd);
     fs.unlinkSync(filePath);
