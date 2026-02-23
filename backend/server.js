@@ -2,8 +2,11 @@ const express = require("express");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const cors = require("cors");
 
 const app = express();
+
+app.use(cors());
 
 app.use(
   express.raw({
@@ -50,6 +53,44 @@ app.post("/encrypt", (req, res) => {
     privateKey: privateKey.toString("hex"),
     iv: iv.toString("hex"),
   });
+});
+
+app.post("/decrypt", (req, res) => {
+  const keyHex = req.headers["x-private-key"];
+  const ivHex = req.headers["x-iv"];
+  const originalFilename = req.headers["x-filename"] || "decrypted_file";
+
+  if (!keyHex || !ivHex || !req.body || req.body.length === 0) {
+    return res.status(400).json({
+      error: "Encrypted file data, private key, or IV missing",
+    });
+  }
+
+  try {
+    const key = Buffer.from(keyHex, "hex");
+    const iv = Buffer.from(ivHex, "hex");
+
+    if (key.length !== 32 || iv.length !== 16) {
+      return res.status(400).json({
+        error: "Invalid key or IV length. Key must be 64 hex chars, IV must be 32 hex chars.",
+      });
+    }
+
+    const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+
+    const decryptedData = Buffer.concat([
+      decipher.update(req.body),
+      decipher.final(),
+    ]);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${originalFilename}"`);
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.status(200).send(decryptedData);
+  } catch (err) {
+    res.status(400).json({
+      error: "Decryption failed. Check that the key and IV are correct.",
+    });
+  }
 });
 
 app.listen(8080, () => {
