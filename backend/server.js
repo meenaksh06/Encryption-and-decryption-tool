@@ -1,6 +1,6 @@
 // server.js — main backend for the encryption/decryption tool
 // handles file encryption (AES-256-CBC), decryption, integrity checks (SHA-256),
-// and secure deletion of encrypted files from disk
+// secure deletion of encrypted files from disk, rate limiting, and file type validation
 
 const express = require("express");
 const crypto = require("crypto");
@@ -8,7 +8,9 @@ const fs = require("fs");
 const path = require("path");
 const { secureDelete } = require("./secureDelete");
 const cors = require("cors");
+const { rateLimit } = require("express-rate-limit");
 const { audit } = require("./audit");
+const { isExtensionAllowed, isMagicBytesAllowed } = require("./fileGuard");
 
 const app = express();
 
@@ -27,17 +29,98 @@ const encryptedDir = path.join(__dirname, "encrypted");
 fs.mkdirSync(encryptedDir, { recursive: true });
 fs.chmodSync(encryptedDir, 0o755);
 
+// ── Rate Limiters ────────────────────────────────────────────────────────────
+// Prevents brute-force attacks and resource exhaustion.
+// Each limiter is scoped by IP (req.ip) and emits an audit entry on a hit.
+
+// Global safety net — catches anything not covered by route-specific limiters
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,   // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    audit("RATE_LIMIT", req, "REJECTED", {
+      route: req.path,
+      reason: "global rate limit exceeded (100 req/15 min)",
+    });
+    res.status(429).json({
+      error: "Too many requests. Please wait a few minutes before trying again.",
+    });
+  },
+});
+
+// Encrypt limiter — AES is CPU-heavy; prevent denial-of-service via bulk uploads
+const encryptLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    audit("RATE_LIMIT", req, "REJECTED", {
+      route: "/encrypt",
+      reason: "encrypt rate limit exceeded (20 req/15 min)",
+    });
+    res.status(429).json({
+      error: "Too many encryption requests. Please wait before encrypting again.",
+    });
+  },
+});
+
+// Decrypt limiter — primary brute-force target; strictest limit
+const decryptLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    audit("RATE_LIMIT", req, "REJECTED", {
+      route: "/decrypt",
+      reason: "decrypt rate limit exceeded (10 req/15 min)",
+    });
+    res.status(429).json({
+      error: "Too many decryption attempts. Please wait before trying again.",
+    });
+  },
+});
+
+app.use(globalLimiter);
+
 // ────────────────────────────────────────────────
 // POST /encrypt — takes a raw file, encrypts it, and saves the .enc to disk
 // also computes a SHA-256 hash of the original plaintext so the client
 // can verify data integrity later after decryption
 // ────────────────────────────────────────────────
-app.post("/encrypt", (req, res) => {
+app.post("/encrypt", encryptLimiter, (req, res) => {
   const filename = req.headers["x-filename"];
 
   if (!filename || !req.body || req.body.length === 0) {
     return res.status(400).json({
       error: "File data or filename missing",
+    });
+  }
+
+  // ── File Type Whitelisting ────────────────────────────────────────────────
+  // 1. Extension check — rejects .exe, .sh, .bat, etc. immediately
+  if (!isExtensionAllowed(filename)) {
+    audit("ENCRYPT", req, "REJECTED", {
+      filename,
+      reason: "blocked file extension",
+    });
+    return res.status(400).json({
+      error: `File type not allowed. The extension "${path.extname(filename).toLowerCase()}" is not on the whitelist.`,
+    });
+  }
+
+  // 2. Magic bytes check — catches renamed executables and unrecognised formats
+  const magicResult = isMagicBytesAllowed(req.body);
+  if (!magicResult.allowed) {
+    audit("ENCRYPT", req, "REJECTED", {
+      filename,
+      reason: `magic bytes rejected: ${magicResult.reason}`,
+    });
+    return res.status(400).json({
+      error: `File content rejected: ${magicResult.reason}. Only safe file types can be encrypted.`,
     });
   }
 
@@ -94,7 +177,7 @@ app.post("/encrypt", (req, res) => {
 // also computes SHA-256 of the decrypted output and sends it in a response
 // header so the client can compare it against the original hash
 // ────────────────────────────────────────────────
-app.post("/decrypt", (req, res) => {
+app.post("/decrypt", decryptLimiter, (req, res) => {
   const keyHex = req.headers["x-private-key"];
   const ivHex = req.headers["x-iv"];
   const originalFilename = req.headers["x-filename"] || "decrypted_file";
