@@ -255,6 +255,7 @@
     function App() {
       // ── encryption side state ──
       const [encFile, setEncFile] = React.useState(null);
+      const [encError, setEncError] = React.useState(""); // file-type rejection message
       const [key, setKey] = React.useState(
         localStorage.getItem("enc_key") || "",
       );
@@ -272,6 +273,50 @@
       const [originalHash, setOriginalHash] = React.useState(
         localStorage.getItem("enc_sha256") || "",
       );
+
+      // ── Client-side file type whitelist ────────────────────────────────────
+      // Mirrors the server-side fileGuard.js so users get instant feedback.
+      const ALLOWED_EXTENSIONS = new Set([
+        ".txt", ".csv", ".json", ".xml",
+        ".pdf",
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg",
+        ".mp4", ".mov", ".avi", ".mkv", ".webm",
+        ".mp3", ".wav", ".ogg", ".flac",
+        ".zip", ".tar", ".gz", ".7z",
+        ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+        ".odt", ".ods", ".odp", ".md",
+      ]);
+      const ALLOWED_MIME_PREFIXES = [
+        "text/", "application/pdf", "application/json", "application/xml",
+        "application/zip", "application/x-tar", "application/gzip",
+        "application/x-7z-compressed",
+        "application/msword", "application/vnd.",
+        "image/", "video/", "audio/", "application/octet-stream",
+      ];
+
+      const handleFileSelect = (file) => {
+        setEncError("");
+        if (!file) { setEncFile(null); return; }
+
+        const ext = "." + file.name.split(".").pop().toLowerCase();
+        if (!ALLOWED_EXTENSIONS.has(ext)) {
+          setEncError(`File type not allowed: "${ext}" is not on the safe-file whitelist.`);
+          setEncFile(null);
+          return;
+        }
+
+        // browser MIME check (best-effort — MIME can be empty for some files)
+        if (file.type && file.type !== "") {
+          const mimeOk = ALLOWED_MIME_PREFIXES.some(p => file.type.startsWith(p));
+          if (!mimeOk) {
+            setEncError(`File MIME type not allowed: "${file.type}". Only documents, media, and archives are accepted.`);
+            setEncFile(null);
+            return;
+          }
+        }
+
+        setEncFile(file);
+      };
 
       // ── decryption side state ──
       const [decFile, setDecFile] = React.useState(null);
@@ -324,6 +369,11 @@
 
           const data = await res.json();
 
+          if (!res.ok) {
+            setEncError(data.error || "Encryption failed");
+            return;
+          }
+
           // persist everything to localStorage so it survives page refreshes
           localStorage.setItem("enc_key", data.privateKey);
           localStorage.setItem("enc_iv", data.iv);
@@ -337,6 +387,7 @@
           setDeleteResult("");
         } catch (err) {
           console.error("Encryption failed:", err);
+          setEncError("Encryption request failed. Check console for details.");
         } finally {
           setEncLoading(false);
         }
@@ -504,8 +555,16 @@
             <input
               type="file"
               className="file-input"
-              onChange={(e) => setEncFile(e.target.files[0])}
+              onChange={(e) => handleFileSelect(e.target.files[0])}
             />
+
+            {encError && (
+              <div className="result result-error" style={{ marginTop: "12px" }}>
+                <div className="value" style={{ color: "#dc2626" }}>
+                  🚫 {encError}
+                </div>
+              </div>
+            )}
 
             <button
               type="button"
