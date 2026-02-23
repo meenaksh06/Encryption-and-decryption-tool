@@ -367,23 +367,40 @@
             body: arrayBuffer,
           });
 
-          const data = await res.json();
-
           if (!res.ok) {
-            setEncError(data.error || "Encryption failed");
+            const errData = await res.json();
+            setEncError(errData.error || "Encryption failed");
             return;
           }
 
-          // persist everything to localStorage so it survives page refreshes
-          localStorage.setItem("enc_key", data.privateKey);
-          localStorage.setItem("enc_iv", data.iv);
-          localStorage.setItem("enc_sha256", data.sha256);
+          // read metadata from the response headers
+          const privateKeyVal  = res.headers.get("X-Private-Key");
+          const ivVal          = res.headers.get("X-IV");
+          const sha256Val      = res.headers.get("X-SHA256");
+          const encFilename    = res.headers.get("X-Encrypted-Filename") || `${encFile.name}.enc`;
+          const secureNoteVal  = res.headers.get("X-Secure-Note") || "";
 
-          setKey(data.privateKey);
-          setIv(data.iv);
-          setEncryptedFileName(data.encryptedFileName || "");
-          setSecureNote(data.secureNote || "");
-          setOriginalHash(data.sha256 || "");
+          // download the encrypted file blob, just like the decrypt side does
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = encFilename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+
+          // persist everything to localStorage so it survives page refreshes
+          localStorage.setItem("enc_key", privateKeyVal);
+          localStorage.setItem("enc_iv", ivVal);
+          localStorage.setItem("enc_sha256", sha256Val);
+
+          setKey(privateKeyVal);
+          setIv(ivVal);
+          setEncryptedFileName(encFilename);
+          setSecureNote(secureNoteVal);
+          setOriginalHash(sha256Val || "");
           setDeleteResult("");
         } catch (err) {
           console.error("Encryption failed:", err);
@@ -630,7 +647,7 @@
             )}
 
             <div className="footer-note">
-              Keys and hash are stored locally in your browser.
+              The encrypted file will download automatically. Keys and hash are stored locally in your browser.
             </div>
           </div>
 
