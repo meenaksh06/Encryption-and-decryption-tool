@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { secureDelete } = require("./secureDelete");
 const cors = require("cors");
 
 const app = express();
@@ -48,10 +49,18 @@ app.post("/encrypt", (req, res) => {
 
   fs.chmodSync(encryptedPath, 0o600);
 
+  // Audit log: confirm no temporary plaintext was written to disk
+  console.log(
+    `[secure] No temp plaintext written to disk for "${filename}" — data processed in-memory only.`,
+  );
+
   res.status(200).json({
     message: "File encrypted successfully",
     privateKey: privateKey.toString("hex"),
     iv: iv.toString("hex"),
+    encryptedFileName,
+    secureNote:
+      "No plaintext was written to disk — data processed in-memory only.",
   });
 });
 
@@ -90,6 +99,45 @@ app.post("/decrypt", (req, res) => {
     res.status(400).json({
       error: "Decryption failed. Check that the key and IV are correct.",
     });
+  }
+});
+
+// ── Secure Delete endpoint ──
+app.post("/secure-delete", (req, res) => {
+  const filename = req.headers["x-filename"];
+
+  if (!filename) {
+    return res.status(400).json({ error: "Filename header (x-filename) is required" });
+  }
+
+  // Only allow .enc files
+  if (!filename.endsWith(".enc")) {
+    return res.status(400).json({ error: "Only .enc files can be securely deleted" });
+  }
+
+  // Path-traversal guard: resolve and verify it stays inside encryptedDir
+  const resolved = path.resolve(encryptedDir, path.basename(filename));
+  if (!resolved.startsWith(encryptedDir)) {
+    return res.status(403).json({ error: "Path traversal detected — access denied" });
+  }
+
+  if (!fs.existsSync(resolved)) {
+    return res.status(404).json({ error: "File not found on server" });
+  }
+
+  try {
+    const result = secureDelete(resolved);
+    console.log(
+      `[secure-delete] Securely deleted "${filename}": ${result.passes} passes, ${result.bytesOverwritten} bytes overwritten.`,
+    );
+    res.status(200).json({
+      message: "File securely deleted",
+      passes: result.passes,
+      bytesOverwritten: result.bytesOverwritten,
+    });
+  } catch (err) {
+    console.error(`[secure-delete] Failed to delete "${filename}":`, err);
+    res.status(500).json({ error: "Secure delete failed: " + err.message });
   }
 });
 

@@ -163,6 +163,58 @@
         color: #94a3b8;
         text-align: center;
       }
+
+      .secure-badge {
+        margin-top: 16px;
+        padding: 10px 14px;
+        background: #f0fdf4;
+        border: 1px solid #86efac;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #166534;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .secure-delete-btn {
+        margin-top: 10px;
+        width: 100%;
+        padding: 10px;
+        background: #dc2626;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .secure-delete-btn:hover {
+        background: #b91c1c;
+      }
+
+      .secure-delete-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .delete-result {
+        margin-top: 10px;
+        padding: 10px 14px;
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #92400e;
+      }
+
+      .delete-result-success {
+        background: #f0fdf4;
+        border-color: #86efac;
+        color: #166534;
+      }
     </style>
   </head>
 
@@ -180,6 +232,10 @@
           localStorage.getItem("enc_iv") || "",
         );
         const [encLoading, setEncLoading] = React.useState(false);
+        const [encryptedFileName, setEncryptedFileName] = React.useState("");
+        const [secureNote, setSecureNote] = React.useState("");
+        const [deleteLoading, setDeleteLoading] = React.useState(false);
+        const [deleteResult, setDeleteResult] = React.useState("");
 
         // ── Decryption state ──
         const [decFile, setDecFile] = React.useState(null);
@@ -223,6 +279,9 @@
 
             setKey(data.privateKey);
             setIv(data.iv);
+            setEncryptedFileName(data.encryptedFileName || "");
+            setSecureNote(data.secureNote || "");
+            setDeleteResult("");
           } catch (err) {
             console.error("Encryption failed:", err);
           } finally {
@@ -288,6 +347,36 @@
           localStorage.removeItem("enc_iv");
           setKey("");
           setIv("");
+          setEncryptedFileName("");
+          setSecureNote("");
+          setDeleteResult("");
+        };
+
+        const secureDeleteFile = async () => {
+          if (!encryptedFileName) return;
+          setDeleteLoading(true);
+          setDeleteResult("");
+          try {
+            const res = await fetch("http://localhost:8080/secure-delete", {
+              method: "POST",
+              headers: {
+                "x-filename": encryptedFileName,
+              },
+            });
+            const data = await res.json();
+            if (res.ok) {
+              setDeleteResult(
+                `🗑️ File securely deleted: ${data.passes} passes, ${data.bytesOverwritten.toLocaleString()} bytes overwritten.`,
+              );
+              setEncryptedFileName("");
+            } else {
+              setDeleteResult(`❌ ${data.error}`);
+            }
+          } catch (err) {
+            setDeleteResult("❌ Secure delete request failed.");
+          } finally {
+            setDeleteLoading(false);
+          }
         };
 
         return (
@@ -325,6 +414,37 @@
                   <button className="clear-btn" onClick={clearKeys}>
                     Clear keys
                   </button>
+                </div>
+              )}
+
+              {secureNote && (
+                <div className="secure-badge">
+                  🛡️ {secureNote}
+                </div>
+              )}
+
+              {encryptedFileName && (
+                <button
+                  type="button"
+                  className="secure-delete-btn"
+                  disabled={deleteLoading}
+                  onClick={secureDeleteFile}
+                >
+                  {deleteLoading
+                    ? "Securely Deleting..."
+                    : "🗑️ Secure Delete from Server"}
+                </button>
+              )}
+
+              {deleteResult && (
+                <div
+                  className={`delete-result ${
+                    deleteResult.startsWith("🗑️")
+                      ? "delete-result-success"
+                      : ""
+                  }`}
+                >
+                  {deleteResult}
                 </div>
               )}
 
