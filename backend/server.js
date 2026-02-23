@@ -104,13 +104,34 @@ app.post("/decrypt", (req, res) => {
   }
 
   try {
+    // ── Key Strength Validation ──────────────────────────────────────────────
+    // Check hex string lengths BEFORE converting to buffers.
+    // A 32-byte AES-256 key = 64 hex chars; a 16-byte IV = 32 hex chars.
+    // Field-specific errors here are far clearer than a generic cipher failure.
+    if (keyHex.length !== 64) {
+      return res.status(400).json({
+        error: `Invalid key length: got ${keyHex.length} hex characters, expected 64 (= 32 bytes). Use the full key from encryption.`,
+      });
+    }
+    if (ivHex.length !== 32) {
+      return res.status(400).json({
+        error: `Invalid IV length: got ${ivHex.length} hex characters, expected 32 (= 16 bytes). Use the full IV from encryption.`,
+      });
+    }
+
     const key = Buffer.from(keyHex, "hex");
     const iv = Buffer.from(ivHex, "hex");
 
-    // quick sanity check — catches typos/truncated keys before the cipher blows up
-    if (key.length !== 32 || iv.length !== 16) {
+    // byte-level sanity check — non-hex characters cause Node to silently
+    // produce a shorter buffer (e.g. "zz" decodes to 0 bytes), so we catch that here
+    if (key.length !== 32) {
       return res.status(400).json({
-        error: "Invalid key or IV length. Key must be 64 hex chars, IV must be 32 hex chars.",
+        error: "Key contains invalid hex characters. Expected a 64-character hexadecimal string (0-9, a-f).",
+      });
+    }
+    if (iv.length !== 16) {
+      return res.status(400).json({
+        error: "IV contains invalid hex characters. Expected a 32-character hexadecimal string (0-9, a-f).",
       });
     }
 

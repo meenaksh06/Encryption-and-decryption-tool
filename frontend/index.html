@@ -348,6 +348,35 @@
       const decryptFile = async () => {
         if (!decFile || !decKey || !decIv) return;
 
+        // ── Client-side Key Strength Validation ──────────────────────────────
+        // Validate before hitting the server so the user gets instant feedback.
+        // Key: 32 bytes → 64 hex chars | IV: 16 bytes → 32 hex chars
+        const trimmedKey = decKey.trim();
+        const trimmedIv = decIv.trim();
+
+        if (trimmedKey.length !== 64) {
+          setDecError(
+            `Invalid key length: got ${trimmedKey.length} characters, expected 64 (32 bytes). ` +
+            "Make sure you copied the full key."
+          );
+          return;
+        }
+        if (trimmedIv.length !== 32) {
+          setDecError(
+            `Invalid IV length: got ${trimmedIv.length} characters, expected 32 (16 bytes). ` +
+            "Make sure you copied the full IV."
+          );
+          return;
+        }
+        if (!/^[0-9a-fA-F]{64}$/.test(trimmedKey)) {
+          setDecError("Key contains invalid characters. It must be a 64-character hexadecimal string (0–9, a–f).");
+          return;
+        }
+        if (!/^[0-9a-fA-F]{32}$/.test(trimmedIv)) {
+          setDecError("IV contains invalid characters. It must be a 32-character hexadecimal string (0–9, a–f).");
+          return;
+        }
+
         setDecLoading(true);
         setDecMessage("");
         setDecError("");
