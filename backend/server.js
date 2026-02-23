@@ -161,15 +161,23 @@ app.post("/encrypt", encryptLimiter, (req, res) => {
     note: "plaintext never written to disk — in-memory only",
   });
 
-  res.status(200).json({
-    message: "File encrypted successfully",
-    privateKey: privateKey.toString("hex"),
-    iv: iv.toString("hex"),
-    encryptedFileName,
-    sha256: originalHash,
-    secureNote:
-      "No plaintext was written to disk — data processed in-memory only.",
-  });
+  // expose all custom headers so the browser can read them across origins
+  res.setHeader(
+    "Access-Control-Expose-Headers",
+    "X-Private-Key, X-IV, X-SHA256, X-Encrypted-Filename, X-Secure-Note",
+  );
+  res.setHeader("X-Private-Key", privateKey.toString("hex"));
+  res.setHeader("X-IV", iv.toString("hex"));
+  res.setHeader("X-SHA256", originalHash);
+  res.setHeader("X-Encrypted-Filename", encryptedFileName);
+  res.setHeader(
+    "X-Secure-Note",
+    "No plaintext was written to disk — data processed in-memory only.",
+  );
+  res.setHeader("Content-Disposition", `attachment; filename="${encryptedFileName}"`);
+  res.setHeader("Content-Type", "application/octet-stream");
+
+  res.status(200).send(encryptedData);
 });
 
 // ────────────────────────────────────────────────
