@@ -1,12 +1,4 @@
-/**
- * Test suite for secureDelete utility
- *
- * Verifies:
- *  1. File is fully removed after secure delete
- *  2. Return value reports correct passes and byte count
- *  3. Throws on non-existent file
- *  4. Handles zero-byte files gracefully
- */
+
 
 const fs = require("fs");
 const path = require("path");
