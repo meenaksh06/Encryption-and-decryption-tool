@@ -60,11 +60,11 @@ app.post("/decrypt", (req, res) => {
   const ivHex = req.headers["x-iv"];
   const originalFilename = req.headers["x-filename"] || "decrypted_file";
 
-  if (!keyHex || !ivHex || !req.body || req.body.length === 0) {
-    return res.status(400).json({
-      error: "Encrypted file data, private key, or IV missing",
-    });
-  }
+  // if (!keyHex || !ivHex || !req.body || req.body.length === 0) {
+  //   return res.status(400).json({
+  //     error: "Encrypted file data, private key, or IV missing",
+  //   });
+  // }
 
   try {
     const key = Buffer.from(keyHex, "hex");
