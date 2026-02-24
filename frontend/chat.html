@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat — VaultLock</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: #1e2130; border-bottom: 1px solid #2d3348; flex-shrink: 0; }
+    .nav-brand { font-size: 16px; font-weight: 700; }
+    .nav-links { display: flex; gap: 16px; }
+    .nav-link { font-size: 13px; color: #94a3b8; text-decoration: none; padding: 6px 10px; border-radius: 6px; border: none; background: none; cursor: pointer; }
+    .nav-link:hover { background: #2d3348; color: #e2e8f0; }
+    .nav-link.active { background: #2d3348; color: #fff; }
+    .nav-user { font-size: 12px; color: #64748b; }
+    .logout-btn { font-size: 12px; color: #ef4444; cursor: pointer; border: none; background: none; padding: 6px 10px; border-radius: 6px; }
+    .logout-btn:hover { background: #3f1212; }
+    .layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 53px); }
+    .sidebar { width: 260px; background: #1e2130; border-right: 1px solid #2d3348; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar-header { padding: 16px; border-bottom: 1px solid #2d3348; }
+    .sidebar-title { font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .add-contact-row { display: flex; gap: 6px; }
+    .add-input { flex: 1; padding: 7px 10px; background: #131620; border: 1px solid #2d3348; border-radius: 7px; color: #e2e8f0; font-size: 13px; outline: none; }
+    .add-input:focus { border-color: #2563eb; }
+    .add-btn { padding: 7px 12px; background: #2563eb; border: none; border-radius: 7px; color: #fff; font-size: 13px; cursor: pointer; }
+    .add-btn:hover { background: #1d4ed8; }
+    .contact-list { flex: 1; overflow-y: auto; }
+    .contact-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; transition: background 0.15s; border-left: 3px solid transparent; }
+    .contact-item:hover { background: #252b3d; }
+    .contact-item.active { background: #1a2140; border-left-color: #2563eb; }
+    .avatar { width: 34px; height: 34px; border-radius: 50%; background: #2d3348; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #94a3b8; flex-shrink: 0; }
+    .contact-info { flex: 1; min-width: 0; }
+    .contact-name { font-size: 13px; font-weight: 500; }
+    .contact-last { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .presence-dot { width: 8px; height: 8px; border-radius: 50%; background: #374151; flex-shrink: 0; }
+    .presence-dot.online { background: #22c55e; }
+    .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .chat-header { padding: 14px 20px; background: #1e2130; border-bottom: 1px solid #2d3348; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .chat-peer { font-size: 15px; font-weight: 600; }
+    .chat-peer-status { font-size: 12px; color: #64748b; }
+    .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .msg-row { display: flex; gap: 10px; }
+    .msg-row.mine { flex-direction: row-reverse; }
+    .msg-avatar { width: 30px; height: 30px; border-radius: 50%; background: #2d3348; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #94a3b8; flex-shrink: 0; align-self: flex-end; }
+    .bubble { max-width: 65%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
+    .bubble-them { background: #1e2130; border: 1px solid #2d3348; border-bottom-left-radius: 4px; }
+    .bubble-mine { background: #1d4ed8; border-bottom-right-radius: 4px; color: #fff; }
+    .msg-time { font-size: 10px; color: #475569; margin-top: 4px; text-align: right; }
+    .msg-row.mine .msg-time { text-align: left; }
+    .file-bubble { display: flex; flex-direction: column; gap: 8px; }
+    .file-card { background: #131620; border: 1px solid #2d3348; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+    .bubble-mine .file-card { background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1); }
+    .file-icon-lg { font-size: 22px; }
+    .file-meta { flex: 1; min-width: 0; }
+    .file-name-msg { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size-msg { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .bubble-mine .file-size-msg { color: rgba(255,255,255,0.6); }
+    .decrypt-btn { padding: 5px 10px; background: #22c55e; color: #052e16; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+    .decrypt-btn:hover { background: #16a34a; }
+    .input-area { padding: 14px 20px; background: #1e2130; border-top: 1px solid #2d3348; flex-shrink: 0; }
+    .input-row { display: flex; gap: 8px; }
+    .msg-input { flex: 1; padding: 10px 14px; background: #131620; border: 1px solid #2d3348; border-radius: 10px; color: #e2e8f0; font-size: 13px; outline: none; }
+    .msg-input:focus { border-color: #2563eb; }
+    .send-btn { padding: 10px 18px; background: #2563eb; border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .send-btn:hover { background: #1d4ed8; }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .share-file-btn { padding: 10px 14px; background: #2d3348; border: none; border-radius: 10px; color: #94a3b8; font-size: 13px; cursor: pointer; }
+    .share-file-btn:hover { background: #374151; color: #e2e8f0; }
+    .no-chat { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: #475569; }
+    .no-chat-icon { font-size: 40px; }
+    .no-chat-text { font-size: 14px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal { background: #1e2130; border: 1px solid #2d3348; border-radius: 14px; padding: 24px; width: 100%; max-width: 440px; }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .modal-field { margin-bottom: 14px; }
+    .modal-label { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
+    .modal-input { width: 100%; padding: 9px 12px; background: #131620; border: 1px solid #2d3348; border-radius: 8px; color: #e2e8f0; font-size: 13px; font-family: monospace; outline: none; }
+    .modal-input:focus { border-color: #2563eb; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .modal-btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .modal-btn-cancel { background: #2d3348; color: #94a3b8; }
+    .modal-btn-primary { background: #2563eb; color: #fff; }
+    .modal-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .drive-file-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .drive-file-item { padding: 10px 12px; background: #131620; border: 1px solid #2d3348; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    .drive-file-item:hover, .drive-file-item.selected { border-color: #2563eb; background: #1a2140; }
+    .empty-contacts { padding: 20px; text-align: center; font-size: 12px; color: #475569; }
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; background: #1e2130; border: 1px solid #2d3348; border-radius: 10px; font-size: 13px; color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 200; }
+    .ws-status { font-size: 11px; padding: 3px 8px; border-radius: 20px; }
+    .ws-ok { background: #052e16; color: #86efac; }
+    .ws-err { background: #3f1212; color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const API = "http://localhost:8080";
+    const WS_URL = "ws://localhost:8080";
+
+    function u8ToB64(bytes) {
+      let s = ""; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s);
+    }
+    function b64ToU8(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
+
+    async function deriveVaultKey(password, saltB64) {
+      const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+      return crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: b64ToU8(saltB64), iterations: 310000, hash: "SHA-256" },
+        base, { name: "AES-GCM", length: 256 }, false, ["encrypt"]
+      );
+    }
+
+    async function encryptForVault(vaultKey, payload) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, vaultKey, new TextEncoder().encode(JSON.stringify(payload)));
+      return { encrypted_data: u8ToB64(new Uint8Array(ct)), enc_iv: u8ToB64(iv) };
+    }
+
+    async function saveKeyToVault(token, label, key, iv) {
+      try {
+        const saltRes = await fetch(`${API}/vault/salt`, { headers: { Authorization: `Bearer ${token}` } });
+        const { salt } = await saltRes.json();
+        const pwd = window.prompt(`🔐 Vault password to save key for "${label}":`);
+        if (!pwd) return;
+        const vaultKey = await deriveVaultKey(pwd, salt);
+        const { encrypted_data, enc_iv } = await encryptForVault(vaultKey, { key, iv, note: `Received via chat ${new Date().toLocaleDateString()}` });
+        const res = await fetch(`${API}/vault/entries`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ label, encrypted_data, enc_iv }),
+        });
+        if (res.ok) alert(`✓ Key saved to Vault for "${label}"`);
+        else alert("Failed to save to Vault.");
+      } catch (e) { alert("Vault error: " + e.message); }
+    }
+
+    function fmtTime(unix) {
+      return new Date(unix * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function fmtSize(b) {
+      if (!b) return "";
+      if (b < 1024) return b + " B";
+      if (b < 1048576) return (b/1024).toFixed(1) + " KB";
+      return (b/1048576).toFixed(1) + " MB";
+    }
+
+    function initials(name) {
+      return (name || "?").slice(0, 2).toUpperCase();
+    }
+
+    function u8ToB64(bytes) {
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary);
+    }
+
+    async function generateECDHKeyPair() {
+      const pair = await crypto.subtle.generateKey(
+        { name: "ECDH", namedCurve: "P-256" },
+        true,
+        ["deriveKey", "deriveBits"]
+      );
+      const pubRaw = await crypto.subtle.exportKey("spki", pair.publicKey);
+      const privRaw = await crypto.subtle.exportKey("pkcs8", pair.privateKey);
+      return {
+        publicKeyB64: u8ToB64(new Uint8Array(pubRaw)),
+        privateKeyB64: u8ToB64(new Uint8Array(privRaw)),
+      };
+    }
+
+    async function importPublicKey(b64) {
+      const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      return crypto.subtle.importKey("spki", raw, { name: "ECDH", namedCurve: "P-256" }, false, []);
+    }
+
+    async function importPrivateKey(b64) {
+      const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      return crypto.subtle.importKey("pkcs8", raw, { name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey", "deriveBits"]);
+    }
+
+    async function deriveSharedKey(myPrivB64, theirPubB64) {
+      const myPriv = await importPrivateKey(myPrivB64);
+      const theirPub = await importPublicKey(theirPubB64);
+      return crypto.subtle.deriveKey(
+        { name: "ECDH", public: theirPub },
+        myPriv,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    async function encryptWithSharedKey(sharedKey, data) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, sharedKey, data);
+      return { iv: u8ToB64(iv), ct: u8ToB64(new Uint8Array(ct)) };
+    }
+
+    async function decryptWithSharedKey(sharedKey, ivB64, ctB64) {
+      const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+      const ct = Uint8Array.from(atob(ctB64), c => c.charCodeAt(0));
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, sharedKey, ct);
+      return new Uint8Array(plain);
+    }
+
+    async function encryptFileBlob(blob) {
+      const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt"]);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const buf = await blob.arrayBuffer();
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, buf);
+      const rawKey = await crypto.subtle.exportKey("raw", key);
+      return {
+        encryptedBlob: new Uint8Array(ct),
+        keyB64: u8ToB64(new Uint8Array(rawKey)),
+        ivB64: u8ToB64(iv),
+      };
+    }
+
+    async function decryptFileBlob(encBytes, keyB64, ivB64) {
+      const rawKey = Uint8Array.from(atob(keyB64), c => c.charCodeAt(0));
+      const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+      const key = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["decrypt"]);
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encBytes);
+      return new Uint8Array(plain);
+    }
+
+    function Nav({ username }) {
+      const logout = () => {
+        localStorage.removeItem("vl_token");
+        localStorage.removeItem("vl_username");
+        window.location.href = "index.html";
+      };
+      return (
+        <nav>
+          <div className="nav-brand">🔐 VaultLock</div>
+          <div className="nav-links">
+            <a className="nav-link" href="workspace.html">Workspace</a>
+            <a className="nav-link" href="drive.html">Drive</a>
+            <span className="nav-link active">Chat</span>
+            <a className="nav-link" href="vault.html">🔐 Vault</a>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="nav-user">👤 {username}</span>
+            <button className="logout-btn" onClick={logout}>Sign out</button>
+          </div>
+        </nav>
+      );
+    }
+
+    function ShareFileModal({ token, peer, myPrivKey, onSend, onClose }) {
+      const [driveFiles, setDriveFiles] = React.useState([]);
+      const [selected, setSelected] = React.useState(null);
+      const [loading, setLoading] = React.useState(true);
+      const [sending, setSending] = React.useState(false);
+      const [error, setError] = React.useState("");
+
+      React.useEffect(() => {
+        fetch(`${API}/drive/files`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json()).then(setDriveFiles).catch(() => setError("Failed to load drive files"))
+          .finally(() => setLoading(false));
+      }, []);
+
+      const send = async () => {
+        if (!selected) return;
+        setSending(true); setError("");
+        try {
+          const pubRes = await fetch(`${API}/chat/users/${peer.username}/pubkey`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!pubRes.ok) { setError("Could not fetch recipient's public key. They may not have opened Chat yet."); setSending(false); return; }
+          const { publicKey: peerPubKeyB64 } = await pubRes.json();
+
+          const dlRes = await fetch(`${API}/drive/download/${encodeURIComponent(selected.stored_name)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!dlRes.ok) { setError("Failed to download file from drive"); setSending(false); return; }
+          const encBlob = await dlRes.blob();
+          const encBytes = new Uint8Array(await encBlob.arrayBuffer());
+
+          const sharedKey = await deriveSharedKey(myPrivKey, peerPubKeyB64);
+          const fileKeyAndIv = JSON.stringify({ key: "PROMPT", iv: "PROMPT" });
+          const wrapped = await encryptWithSharedKey(sharedKey, new TextEncoder().encode(fileKeyAndIv));
+
+          const fileDataB64 = u8ToB64(encBytes);
+
+          const body = JSON.stringify({
+            originalName: selected.original_name,
+            storedName: selected.stored_name,
+            sizeBytes: selected.size_bytes,
+            encryptedFileB64: fileDataB64,
+            wrappedKeyIv: wrapped.iv,
+            wrappedKeyCt: wrapped.ct,
+            note: "Paste your key+IV to decrypt — the sender will share them via a secure channel",
+          });
+
+          onSend({ type: "file", body });
+          onClose();
+        } catch (e) {
+          setError("Error: " + e.message);
+        } finally {
+          setSending(false);
+        }
+      };
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">📎 Share File from Drive</div>
+            {loading ? <div style={{ color: "#64748b", fontSize: 13 }}>Loading drive…</div> : (
+              <div className="drive-file-list">
+                {driveFiles.length === 0 && <div style={{ color: "#475569", fontSize: 13, textAlign: "center", padding: 16 }}>No files in Drive. Encrypt some files first.</div>}
+                {driveFiles.map(f => (
+                  <div key={f.id} className={`drive-file-item ${selected?.id === f.id ? "selected" : ""}`} onClick={() => setSelected(f)}>
+                    <span>📄</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.original_name}</div>
+                      <div style={{ fontSize: 11, color: "#64748b" }}>{fmtSize(f.size_bytes)}</div>
+                    </div>
+                    {selected?.id === f.id && <span style={{ color: "#2563eb" }}>✓</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {error && <div style={{ color: "#f87171", fontSize: 12, marginBottom: 10 }}>{error}</div>}
+            <div style={{ fontSize: 11, color: "#475569", marginBottom: 12 }}>
+              The encrypted file will be shared. Recipients need the original Key + IV to decrypt it (share via a secure channel).
+            </div>
+            <div className="modal-actions">
+              <button className="modal-btn modal-btn-cancel" onClick={onClose}>Cancel</button>
+              <button className="modal-btn modal-btn-primary" disabled={!selected || sending} onClick={send}>
+                {sending ? "Sending…" : "Send File"}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function DecryptFileModal({ fileMsg, onClose, token }) {
+      const [key, setKey] = React.useState("");
+      const [iv, setIv] = React.useState("");
+      const [loading, setLoading] = React.useState(false);
+      const [error, setError] = React.useState("");
+      const [saveToVaultChecked, setSaveToVaultChecked] = React.useState(true);
+
+      const doDecrypt = async () => {
+        setLoading(true); setError("");
+        try {
+          const meta = JSON.parse(fileMsg.body);
+          const encBytes = Uint8Array.from(atob(meta.encryptedFileB64), c => c.charCodeAt(0));
+          const plain = await decryptFileBlob(encBytes, key.trim(), iv.trim());
+          const blob = new Blob([plain]);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = meta.originalName || "decrypted_file";
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          if (saveToVaultChecked) {
+            await saveKeyToVault(token, meta.originalName || "shared_file", key.trim(), iv.trim());
+          }
+          onClose();
+        } catch {
+          setError("Decryption failed — check your Key and IV.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      let meta = {};
+      try { meta = JSON.parse(fileMsg.body); } catch {}
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">🔓 Decrypt Shared File</div>
+            <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 14 }}>
+              <strong>{meta.originalName}</strong> · {fmtSize(meta.sizeBytes)}
+            </div>
+            <div className="modal-field">
+              <div className="modal-label">AES Key (hex or base64)</div>
+              <input className="modal-input" placeholder="Paste key from sender" value={key} onChange={e => setKey(e.target.value)} />
+            </div>
+            <div className="modal-field">
+              <div className="modal-label">IV (hex or base64)</div>
+              <input className="modal-input" placeholder="Paste IV from sender" value={iv} onChange={e => setIv(e.target.value)} />
+            </div>
+            {error && <div style={{ color: "#f87171", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <input type="checkbox" id="saveVault" checked={saveToVaultChecked} onChange={e => setSaveToVaultChecked(e.target.checked)} style={{ accentColor: "#7c3aed", width: 14, height: 14 }} />
+              <label htmlFor="saveVault" style={{ fontSize: 12, color: "#94a3b8", cursor: "pointer" }}>Save key to Vault after decrypting</label>
+            </div>
+            <div className="modal-actions">
+              <button className="modal-btn modal-btn-cancel" onClick={onClose}>Cancel</button>
+              <button className="modal-btn modal-btn-primary" disabled={!key || !iv || loading} onClick={doDecrypt}>
+                {loading ? "Decrypting…" : "Decrypt & Download"}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function MessageBubble({ msg, myId }) {
+      const [showDecrypt, setShowDecrypt] = React.useState(false);
+      const mine = msg.sender_id === myId;
+      const isFile = msg.messageType === "file" || msg.type === "file";
+
+      let fileMeta = {};
+      if (isFile) {
+        try { fileMeta = JSON.parse(msg.body); } catch {}
+      }
+
+      return (
+        <div className={`msg-row ${mine ? "mine" : ""}`}>
+          {!mine && <div className="msg-avatar">{initials(msg.sender_username)}</div>}
+          <div>
+            <div className={`bubble ${mine ? "bubble-mine" : "bubble-them"}`}>
+              {isFile ? (
+                <div className="file-bubble">
+                  <div className="file-card">
+                    <span className="file-icon-lg">📎</span>
+                    <div className="file-meta">
+                      <div className="file-name-msg">{fileMeta.originalName || "Encrypted file"}</div>
+                      <div className="file-size-msg">{fmtSize(fileMeta.sizeBytes)} · AES-GCM encrypted</div>
+                    </div>
+                    {!mine && (
+                      <button className="decrypt-btn" onClick={() => setShowDecrypt(true)}>⬇ Decrypt</button>
+                    )}
+                  </div>
+                </div>
+              ) : msg.body}
+            </div>
+            <div className="msg-time">{fmtTime(msg.created_at)}</div>
+          </div>
+          {mine && <div className="msg-avatar">{initials(msg.sender_username)}</div>}
+          {showDecrypt && <DecryptFileModal fileMsg={msg} token={token} onClose={() => setShowDecrypt(false)} />}
+        </div>
+      );
+    }
+
+    function App() {
+      const token = localStorage.getItem("vl_token");
+      const username = localStorage.getItem("vl_username") || "";
+      const myId = React.useRef(null);
+
+      const [contacts, setContacts] = React.useState([]);
+      const [presence, setPresence] = React.useState({});
+      const [activePeer, setActivePeer] = React.useState(null);
+      const [messages, setMessages] = React.useState([]);
+      const [inputText, setInputText] = React.useState("");
+      const [wsStatus, setWsStatus] = React.useState("connecting");
+      const [addUsername, setAddUsername] = React.useState("");
+      const [addError, setAddError] = React.useState("");
+      const [showShare, setShowShare] = React.useState(false);
+      const [myPrivKey, setMyPrivKey] = React.useState(null);
+      const [toast, setToast] = React.useState("");
+      const wsRef = React.useRef(null);
+      const messagesEndRef = React.useRef(null);
+
+      React.useEffect(() => {
+        if (!token) { window.location.href = "index.html"; return; }
+        setupKeys();
+        loadContacts();
+      }, []);
+
+      React.useEffect(() => {
+        if (token && wsStatus !== "connecting") return;
+        connectWS();
+      }, [token]);
+
+      React.useEffect(() => {
+        if (activePeer) loadMessages(activePeer.id);
+      }, [activePeer]);
+
+      React.useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, [messages]);
+
+      const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+
+      const setupKeys = async () => {
+        let privKey = localStorage.getItem("vl_priv_key");
+        let pubKey = localStorage.getItem("vl_pub_key");
+
+        if (!privKey || !pubKey) {
+          const pair = await generateECDHKeyPair();
+          privKey = pair.privateKeyB64;
+          pubKey = pair.publicKeyB64;
+          localStorage.setItem("vl_priv_key", privKey);
+          localStorage.setItem("vl_pub_key", pubKey);
+        }
+
+        setMyPrivKey(privKey);
+
+        await fetch(`${API}/chat/key`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ publicKey: pubKey }),
+        });
+      };
+
+      const connectWS = () => {
+        const ws = new WebSocket(WS_URL);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          ws.send(JSON.stringify({ type: "auth", token }));
+        };
+
+        ws.onmessage = (e) => {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "auth_ok") {
+            setWsStatus("ok");
+          } else if (msg.type === "presence") {
+            setPresence(prev => ({ ...prev, [msg.userId]: msg.online }));
+          } else if (msg.type === "new_message") {
+            setMessages(prev => {
+              if (prev.some(m => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+          } else if (msg.type === "error") {
+            setWsStatus("error");
+          }
+        };
+
+        ws.onclose = () => setWsStatus("error");
+        ws.onerror = () => setWsStatus("error");
+      };
+
+      const loadContacts = async () => {
+        try {
+          const res = await fetch(`${API}/chat/contacts`, { headers: { Authorization: `Bearer ${token}` } });
+          if (res.status === 401) { window.location.href = "index.html"; return; }
+          const data = await res.json();
+          setContacts(data);
+        } catch {}
+      };
+
+      const loadMessages = async (peerId) => {
+        try {
+          const convRes = await fetch(`${API}/chat/conversations`, { headers: { Authorization: `Bearer ${token}` } });
+          const convs = await convRes.json();
+          const conv = convs.find(c => c.peer.id === peerId);
+          if (!conv) { setMessages([]); return; }
+          const res = await fetch(`${API}/chat/conversations/${conv.id}/messages`, { headers: { Authorization: `Bearer ${token}` } });
+          const msgs = await res.json();
+          const tokenPayload = JSON.parse(atob(token.split(".")[1]));
+          myId.current = tokenPayload.id;
+          setMessages(msgs.map(m => ({ ...m, messageType: m.type })));
+        } catch { setMessages([]); }
+      };
+
+      const addContact = async () => {
+        setAddError("");
+        if (!addUsername.trim()) return;
+        try {
+          const res = await fetch(`${API}/chat/contacts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ username: addUsername.trim() }),
+          });
+          const data = await res.json();
+          if (!res.ok) { setAddError(data.error); return; }
+          setContacts(prev => [...prev, data]);
+          setAddUsername("");
+          showToast(`✓ ${data.username} added`);
+        } catch { setAddError("Network error"); }
+      };
+
+      const sendMessage = (type = "text", body = inputText.trim()) => {
+        if (!body || !activePeer || wsRef.current?.readyState !== 1) return;
+        wsRef.current.send(JSON.stringify({ type: "send_message", toUserId: activePeer.id, messageType: type, body }));
+        if (type === "text") setInputText("");
+      };
+
+      const getMyId = () => {
+        if (myId.current) return myId.current;
+        try { return JSON.parse(atob(token.split(".")[1])).id; } catch { return null; }
+      };
+
+      if (!token) return null;
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+          <Nav username={username} />
+          <div className="layout">
+            <div className="sidebar">
+              <div className="sidebar-header">
+                <div className="sidebar-title">Contacts</div>
+                <div className="add-contact-row">
+                  <input
+                    className="add-input"
+                    placeholder="Add by username…"
+                    value={addUsername}
+                    onChange={e => setAddUsername(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addContact()}
+                  />
+                  <button className="add-btn" onClick={addContact}>+</button>
+                </div>
+                {addError && <div style={{ fontSize: 11, color: "#f87171", marginTop: 6 }}>{addError}</div>}
+              </div>
+              <div className="contact-list">
+                {contacts.length === 0 && (
+                  <div className="empty-contacts">No contacts yet.<br />Add a username above.</div>
+                )}
+                {contacts.map(c => (
+                  <div
+                    key={c.id}
+                    className={`contact-item ${activePeer?.id === c.id ? "active" : ""}`}
+                    onClick={() => { setActivePeer(c); setMessages([]); }}
+                  >
+                    <div className="avatar">{initials(c.username)}</div>
+                    <div className="contact-info">
+                      <div className="contact-name">{c.username}</div>
+                    </div>
+                    <div className={`presence-dot ${presence[c.id] ? "online" : ""}`} title={presence[c.id] ? "Online" : "Offline"} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: "12px 16px", borderTop: "1px solid #2d3348" }}>
+                <span className={`ws-status ${wsStatus === "ok" ? "ws-ok" : "ws-err"}`}>
+                  {wsStatus === "ok" ? "● Connected" : "○ Disconnected"}
+                </span>
+              </div>
+            </div>
+
+            <div className="chat-area">
+              {!activePeer ? (
+                <div className="no-chat">
+                  <div className="no-chat-icon">💬</div>
+                  <div className="no-chat-text">Select a contact to start chatting</div>
+                </div>
+              ) : (
+                <>
+                  <div className="chat-header">
+                    <div className="avatar" style={{ width: 36, height: 36 }}>{initials(activePeer.username)}</div>
+                    <div>
+                      <div className="chat-peer">{activePeer.username}</div>
+                      <div className="chat-peer-status">{presence[activePeer.id] ? "🟢 Online" : "⚪ Offline"}</div>
+                    </div>
+                  </div>
+
+                  <div className="messages">
+                    {messages.length === 0 && (
+                      <div style={{ textAlign: "center", color: "#475569", fontSize: 13, marginTop: 40 }}>
+                        No messages yet. Say hello!
+                      </div>
+                    )}
+                    {messages.map((msg, i) => (
+                      <MessageBubble key={msg.id || i} msg={msg} myId={getMyId()} />
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  <div className="input-area">
+                    <div className="input-row">
+                      <button
+                        className="share-file-btn"
+                        title="Share encrypted file"
+                        onClick={() => setShowShare(true)}
+                      >📎</button>
+                      <input
+                        className="msg-input"
+                        placeholder={`Message ${activePeer.username}…`}
+                        value={inputText}
+                        onChange={e => setInputText(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                      />
+                      <button
+                        className="send-btn"
+                        disabled={!inputText.trim() || wsStatus !== "ok"}
+                        onClick={() => sendMessage()}
+                      >Send</button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {showShare && activePeer && (
+            <ShareFileModal
+              token={token}
+              peer={activePeer}
+              myPrivKey={myPrivKey}
+              onSend={({ type, body }) => sendMessage(type, body)}
+              onClose={() => setShowShare(false)}
+            />
+          )}
+          {toast && <div className="toast">{toast}</div>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

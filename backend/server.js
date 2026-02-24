@@ -1,12 +1,25 @@
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { WebSocketServer } = require("ws");
+const jwt = require("jsonwebtoken");
 const { secureDelete } = require("./secureDelete");
 const cors = require("cors");
+const { rateLimit } = require("express-rate-limit");
+const { audit } = require("./audit");
+const { isExtensionAllowed, isMagicBytesAllowed } = require("./fileGuard");
+const authMiddleware = require("./middleware/auth");
+const db = require("./db");
+const authRouter = require("./routes/auth");
+const driveRouter = require("./routes/drive");
+const { router: chatRouter, getOrCreateConversation } = require("./routes/chat");
+const vaultRouter = require("./routes/vault");
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 8080;
 
 app.use(cors());
@@ -16,6 +29,12 @@ app.use("/auth", authRouter);
 
 app.use("/drive", express.json());
 app.use("/drive", driveRouter);
+
+app.use("/chat", express.json());
+app.use("/chat", chatRouter);
+
+app.use("/vault", express.json());
+app.use("/vault", vaultRouter);
 
 app.use(
   express.raw({
@@ -40,10 +59,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    audit("RATE_LIMIT", req, "REJECTED", {
-      route: req.path,
-      reason: "global rate limit exceeded",
-    });
+    audit("RATE_LIMIT", req, "REJECTED", { route: req.path, reason: "global rate limit exceeded" });
     res.status(429).json({ error: "Too many requests. Please wait a few minutes." });
   },
 });
@@ -91,14 +107,6 @@ app.post("/encrypt", authMiddleware, encryptLimiter, (req, res) => {
   if (!magicResult.allowed) {
     audit("ENCRYPT", req, "REJECTED", { filename, reason: `magic bytes rejected: ${magicResult.reason}` });
     return res.status(400).json({ error: `File content rejected: ${magicResult.reason}` });
-  }
-
-  // ── File type validation ──
-  const validation = validateFileType(filename);
-  if (!validation.allowed) {
-    return res.status(415).json({
-      error: validation.reason,
-    });
   }
 
   const originalHash = crypto.createHash("sha256").update(req.body).digest("hex");
@@ -157,14 +165,10 @@ app.post("/decrypt", authMiddleware, decryptLimiter, (req, res) => {
 
   try {
     if (keyHex.length !== 64) {
-      return res.status(400).json({
-        error: `Invalid key length: got ${keyHex.length} hex chars, expected 64.`,
-      });
+      return res.status(400).json({ error: `Invalid key length: got ${keyHex.length} hex chars, expected 64.` });
     }
     if (ivHex.length !== 32) {
-      return res.status(400).json({
-        error: `Invalid IV length: got ${ivHex.length} hex chars, expected 32.`,
-      });
+      return res.status(400).json({ error: `Invalid IV length: got ${ivHex.length} hex chars, expected 32.` });
     }
 
     const key = Buffer.from(keyHex, "hex");
@@ -186,9 +190,8 @@ app.post("/decrypt", authMiddleware, decryptLimiter, (req, res) => {
     audit("DECRYPT", req, "SUCCESS", { filename: originalFilename, sizeBytes: decryptedData.length, sha256: decryptedHash });
     res.status(200).send(decryptedData);
   } catch (err) {
-    res.status(400).json({
-      error: "Decryption failed. Check that the key and IV are correct.",
-    });
+    audit("DECRYPT", req, "FAILURE", { filename: originalFilename, reason: err.message });
+    res.status(400).json({ error: "Decryption failed. Check that the key and IV are correct." });
   }
 });
 
@@ -199,9 +202,11 @@ app.post("/secure-delete", authMiddleware, (req, res) => {
     return res.status(400).json({ error: "Only .enc files can be securely deleted" });
   }
 
-  const resolved = path.resolve(encryptedDir, path.basename(filename));
-  if (!resolved.startsWith(encryptedDir)) {
-    return res.status(403).json({ error: "Path traversal detected — access denied" });
+  const userDir = getUserEncryptedDir(req.user.id);
+  const resolved = path.resolve(userDir, path.basename(filename));
+
+  if (!resolved.startsWith(userDir)) {
+    return res.status(403).json({ error: "Path traversal detected" });
   }
 
   if (!fs.existsSync(resolved)) {
@@ -219,6 +224,104 @@ app.post("/secure-delete", authMiddleware, (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Encryption server running on port ${PORT}`);
+const wss = new WebSocketServer({ server });
+
+const clients = new Map();
+
+function broadcast(userId, payload) {
+  const ws = clients.get(userId);
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify(payload));
+  }
+}
+
+wss.on("connection", (ws) => {
+  let authedUser = null;
+  let authTimeout = setTimeout(() => {
+    ws.close(4001, "Authentication timeout");
+  }, 10000);
+
+  ws.on("message", (raw) => {
+    let msg;
+    try {
+      msg = JSON.parse(raw);
+    } catch {
+      ws.send(JSON.stringify({ type: "error", error: "Invalid JSON" }));
+      return;
+    }
+
+    if (!authedUser) {
+      if (msg.type !== "auth" || !msg.token) {
+        ws.send(JSON.stringify({ type: "error", error: "Send auth message first" }));
+        return;
+      }
+      try {
+        const payload = jwt.verify(msg.token, process.env.JWT_SECRET);
+        authedUser = { id: payload.id, username: payload.username };
+        clearTimeout(authTimeout);
+        clients.set(authedUser.id, ws);
+
+        ws.send(JSON.stringify({ type: "auth_ok", username: authedUser.username }));
+
+        const contacts = db
+          .prepare(
+            `SELECT u.id FROM contacts c JOIN users u ON c.contact_id = u.id WHERE c.user_id = ?`
+          )
+          .all(authedUser.id);
+
+        contacts.forEach(c => {
+          broadcast(c.id, { type: "presence", userId: authedUser.id, username: authedUser.username, online: true });
+        });
+      } catch {
+        ws.send(JSON.stringify({ type: "error", error: "Invalid token" }));
+        ws.close(4001, "Invalid token");
+      }
+      return;
+    }
+
+    if (msg.type === "send_message") {
+      const { toUserId, body, messageType } = msg;
+      if (!toUserId || !body) return;
+
+      const convId = getOrCreateConversation(authedUser.id, toUserId);
+      const type = messageType || "text";
+
+      const result = db
+        .prepare("INSERT INTO messages (conversation_id, sender_id, type, body) VALUES (?, ?, ?, ?)")
+        .run(convId, authedUser.id, type, typeof body === "string" ? body : JSON.stringify(body));
+
+      const outMsg = {
+        type: "new_message",
+        id: result.lastInsertRowid,
+        conversation_id: convId,
+        sender_id: authedUser.id,
+        sender_username: authedUser.username,
+        messageType: type,
+        body: typeof body === "string" ? body : JSON.stringify(body),
+        created_at: Math.floor(Date.now() / 1000),
+      };
+
+      ws.send(JSON.stringify(outMsg));
+      broadcast(toUserId, outMsg);
+    }
+  });
+
+  ws.on("close", () => {
+    if (authedUser) {
+      clients.delete(authedUser.id);
+      const contacts = db
+        .prepare(
+          `SELECT u.id FROM contacts c JOIN users u ON c.contact_id = u.id WHERE c.user_id = ?`
+        )
+        .all(authedUser.id);
+      contacts.forEach(c => {
+        broadcast(c.id, { type: "presence", userId: authedUser.id, username: authedUser.username, online: false });
+      });
+    }
+    clearTimeout(authTimeout);
+  });
+});
+
+server.listen(PORT, () => {
+  console.log(`VaultLock server running on port ${PORT} (HTTP + WebSocket)`);
 });
