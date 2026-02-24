@@ -233,7 +233,6 @@
         localStorage.getItem("enc_iv") || "",
       );
       const [encLoading, setEncLoading] = React.useState(false);
-      const [encError, setEncError] = React.useState("");
       const [encryptedFileName, setEncryptedFileName] = React.useState("");
       const [secureNote, setSecureNote] = React.useState("");
       const [deleteLoading, setDeleteLoading] = React.useState(false);
@@ -261,7 +260,6 @@
         if (!encFile) return;
 
         setEncLoading(true);
-        setEncError("");
 
         try {
           const arrayBuffer = await encFile.arrayBuffer();
@@ -276,11 +274,6 @@
           });
 
           const data = await res.json();
-
-          if (!res.ok) {
-            setEncError(data.error || "Encryption failed");
-            return;
-          }
 
           localStorage.setItem("enc_key", data.privateKey);
           localStorage.setItem("enc_iv", data.iv);
@@ -410,14 +403,6 @@
             >
               {encLoading ? "Encrypting..." : "Encrypt File"}
             </button>
-
-            {encError && (
-              <div className="result result-error">
-                <div className="value" style={{ color: "#dc2626" }}>
-                  ⚠️ {encError}
-                </div>
-              </div>
-            )}
 
             {key && (
               <div className="result">
