@@ -1,0 +1,58 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        background: "var(--color-background)",
+        surface: "var(--color-surface)",
+        "surface-hover": "var(--color-surface-hover)",
+        "surface-elevated": "var(--color-surface-elevated)",
+        border: "var(--color-border)",
+        "border-subtle": "var(--color-border-subtle)",
+        primary: "var(--color-primary)",
+        "primary-hover": "var(--color-primary-hover)",
+        "primary-muted": "var(--color-primary-muted)",
+        accent: "var(--color-accent)",
+        "accent-muted": "var(--color-accent-muted)",
+        success: "var(--color-success)",
+        danger: "var(--color-danger)",
+        warning: "var(--color-warning)",
+        text: "var(--color-text)",
+        "text-muted": "var(--color-text-muted)",
+        "text-dim": "var(--color-text-dim)",
+        glass: "var(--color-glass)",
+        "glass-border": "var(--color-glass-border)",
+      },
+      fontFamily: {
+        sans: ["var(--font-sans)"],
+        display: ["var(--font-display)"],
+      },
+      borderRadius: {
+        card: "var(--radius-card)",
+        button: "var(--radius-button)",
+      },
+      boxShadow: {
+        soft: "var(--shadow-soft)",
+        card: "var(--shadow-card)",
+        glow: "var(--shadow-glow)",
+      },
+      animation: {
+        float: "float 6s ease-in-out infinite",
+        "float-delayed": "float 6s ease-in-out 2s infinite",
+        "float-slow": "float-slow 5s ease-in-out infinite",
+        "pulse-glow": "pulse-glow 3s ease-in-out infinite",
+        "fade-in-up": "fade-in-up 0.6s ease-out forwards",
+        "spin-slow": "spin 20s linear infinite",
+        orbit: "orbit 20s linear infinite",
+        "glow-pulse": "glow-pulse 4s ease-in-out infinite",
+      },
+    },
+  },
+  plugins: [],
+};

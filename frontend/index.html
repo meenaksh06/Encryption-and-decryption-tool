@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VaultLock — Secure File Encryption</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .page { width: 100%; max-width: 420px; padding: 24px; }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo-icon { font-size: 40px; margin-bottom: 8px; }
+    .logo-text { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-sub { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 14px;
+      padding: 28px;
+    }
+    .tabs { display: flex; gap: 4px; background: #131620; border-radius: 8px; padding: 4px; margin-bottom: 24px; }
+    .tab {
+      flex: 1; padding: 8px; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      background: transparent; color: #64748b; transition: all 0.2s;
+    }
+    .tab.active { background: #2563eb; color: #fff; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
+    .field input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #2d3348; border-radius: 8px;
+      background: #131620; color: #e2e8f0;
+      font-size: 14px; outline: none; transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: #2563eb; }
+    .btn {
+      width: 100%; padding: 11px; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      background: #2563eb; color: #fff; transition: background 0.2s;
+    }
+    .btn:hover { background: #1d4ed8; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error { margin-top: 12px; padding: 10px 12px; background: #3f1212; border: 1px solid #7f1d1d; border-radius: 8px; font-size: 13px; color: #fca5a5; }
+    .success { margin-top: 12px; padding: 10px 12px; background: #052e16; border: 1px solid #14532d; border-radius: 8px; font-size: 13px; color: #86efac; }
+    .footer { text-align: center; margin-top: 16px; font-size: 12px; color: #475569; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const API = "http://localhost:8080";
+
+    function App() {
+      const [tab, setTab] = React.useState("login");
+      const [username, setUsername] = React.useState("");
+      const [password, setPassword] = React.useState("");
+      const [loading, setLoading] = React.useState(false);
+      const [error, setError] = React.useState("");
+      const [success, setSuccess] = React.useState("");
+
+      React.useEffect(() => {
+        const token = localStorage.getItem("vl_token");
+        if (token) window.location.href = "workspace.html";
+      }, []);
+
+      const switchTab = (t) => { setTab(t); setError(""); setSuccess(""); };
+
+      const submit = async () => {
+        setError(""); setSuccess("");
+        if (!username.trim() || !password) { setError("Please fill in all fields"); return; }
+        setLoading(true);
+        try {
+          const res = await fetch(`${API}/auth/${tab}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: username.trim(), password }),
+          });
+          const data = await res.json();
+          if (!res.ok) { setError(data.error || "Request failed"); return; }
+          localStorage.setItem("vl_token", data.token);
+          localStorage.setItem("vl_username", data.username);
+          window.location.href = "workspace.html";
+        } catch {
+          setError("Cannot reach the server. Make sure the backend is running.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const onKey = (e) => { if (e.key === "Enter") submit(); };
+
+      return (
+        <div className="page">
+          <div className="logo">
+            <div className="logo-icon">🔐</div>
+            <div className="logo-text">VaultLock</div>
+            <div className="logo-sub">End-to-end encrypted file storage</div>
+          </div>
+          <div className="card">
+            <div className="tabs">
+              <button className={`tab ${tab === "login" ? "active" : ""}`} onClick={() => switchTab("login")}>Sign In</button>
+              <button className={`tab ${tab === "register" ? "active" : ""}`} onClick={() => switchTab("register")}>Register</button>
+            </div>
+            <div className="field">
+              <label>Username</label>
+              <input type="text" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={onKey} placeholder="Enter your username" autoFocus />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={onKey} placeholder="Enter your password" />
+            </div>
+            <button className="btn" onClick={submit} disabled={loading}>
+              {loading ? (tab === "login" ? "Signing in..." : "Creating account...") : (tab === "login" ? "Sign In" : "Create Account")}
+            </button>
+            {error && <div className="error">{error}</div>}
+            {success && <div className="success">{success}</div>}
+          </div>
+          <div className="footer">AES-256-CBC · JWT Auth · Files encrypted in-memory</div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

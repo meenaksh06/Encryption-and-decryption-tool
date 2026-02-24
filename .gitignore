@@ -1,0 +1,26 @@
+node_modules/
+.next/
+frontend-next/.next/
+
+# Secrets — NEVER commit
+backend/.env
+
+# SQLite database and WAL files
+backend/vault.db
+backend/vault.db-shm
+backend/vault.db-wal
+
+# Per-user encrypted file storage
+backend/encrypted/
+
+# Runtime logs
+backend/audit.log
+*.log
+
+# Temporary test files
+backend/test.txt
+/tmp/vl_*
+
+# OS clutter
+.DS_Store
+Thumbs.db
