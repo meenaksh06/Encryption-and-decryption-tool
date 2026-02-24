@@ -34,7 +34,11 @@ flowchart TD
 
 ## Key Features
 
+<<<<<<< HEAD
 ## Core Cryptography
+=======
+### Core Cryptography
+>>>>>>> 1b052d1a563bda1f800e7e399231940c52caf05c
 - **AES-256-CBC Encryption**: In-memory streaming encryption utilizing Node's built-in `crypto` APIs.
 - **Zero-Knowledge Architecture**: Plaintext is never written to disk. The server never persists your keys; decryption keys are single-use or handled client-side/via memory.
 - **Data Integrity**: SHA-256 digesting to guarantee files haven't been tampered with or corrupted on disk.
