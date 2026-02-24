@@ -8,23 +8,47 @@ VaultLock is a comprehensive demonstration of **Operating System-level data prot
 
 The project has evolved from Phase 1 (Encryption only) to a fully-featured secure workspace encompassing Secure File Drive, an End-to-End Chat system, and a robust Password / Secrets Vault.
 
+## System Architecture
+
+```mermaid
+flowchart TD
+    Client[Client App / Next.js] -->|HTTP / WS| Router[Express API Router]
+    
+    subgraph Backend_Process[Node.js Backend Process]
+        Router --> Auth{JWT Auth}
+        Auth -->|Valid| WSS[WebSocket Chat Server]
+        Auth -->|Valid| Vault[Key Vault Controller]
+        Auth -->|Valid| Guard[FileGuard Scanner]
+        
+        Guard -->|Magic Bytes OK| Crypto[AES-256-CBC In-Memory]
+        Crypto -->|Encrypted Output| Storage[(OS File System <br> 0600 Isolation)]
+        Vault --> DB[(SQLite Database)]
+        WSS .-> DB
+    end
+    
+    style Client fill:#2563eb,stroke:#fff,color:#fff
+    style Crypto fill:#9333ea,stroke:#fff,color:#fff
+    style Storage fill:#dc2626,stroke:#fff,color:#fff
+    style DB fill:#16a34a,stroke:#fff,color:#fff
+```
+
 ## Key Features
 
-### 🛡️ Core Cryptography
+## Core Cryptography
 - **AES-256-CBC Encryption**: In-memory streaming encryption utilizing Node's built-in `crypto` APIs.
 - **Zero-Knowledge Architecture**: Plaintext is never written to disk. The server never persists your keys; decryption keys are single-use or handled client-side/via memory.
 - **Data Integrity**: SHA-256 digesting to guarantee files haven't been tampered with or corrupted on disk.
 - **Secure File Deletion**: 3-pass overwrite mechanism (Random → Zero → Random) with hardware `fsync()` flushing before OS unlinking, protecting against basic data recovery (Gutmann method inspired).
 
-### 📁 The Secure Drive
+### The Secure Drive
 - **Magic-Byte Defense**: Multi-tier file validation mechanism that identifies internal structure, completely blocking arbitrary executables (PE, ELF, Mach-O) even if extensions are spoofed.
 - **OS-Level Isolation**: Hardened file access. Encrypted files are stored on disk with `0600` permissions inside per-user `0700` directories.
 
-### 💬 Secure Real-Time Chat & Vault
+### Secure Real-Time Chat & Vault
 - **WebSocket E2EE-Ready Chat**: Private real-time messaging verified via JSON Web Tokens middleware.
 - **Personal Key Vault**: Secure repository within the SQLite Database holding AES-256 encrypted labels, tokens, or plaintext credentials.
 
-### 📊 Audit & Reliability 
+### Audit & Reliability 
 - **Centralized Audit Logging**: A chronological `audit.log` (JSON-lines) records authentication lifecycles, unauthorized access attempts, and encryptions/decryptions.
 - **Rate Limiting**: Defends global API boundaries and throttles heavy cryptographic procedures (IP-based limits).
 
@@ -60,21 +84,21 @@ The project has evolved from Phase 1 (Encryption only) to a fully-featured secur
    ```bash
    git clone <repo_url>
    cd os_project/backend
-   cp .env.example .env  # Add your JWT_SECRET here
+   cp .env.example .env  
    ```
 
 2. **Start Backend Server**
    ```bash
    cd backend
    npm install
-   npm start # Runs on http://localhost:8080
+   npm start
    ```
 
 3. **Start Frontend (Next.js)**
    ```bash
    cd frontend-next
    npm install
-   npm run dev # Runs on http://localhost:3000
+   npm run dev 
    ```
 
 *(Alternatively, for testing Phase 1/V1, you can run a Python HTTP Server in the `frontend/` directory).*
