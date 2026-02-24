@@ -4,6 +4,65 @@ const fs = require("fs");
 const path = require("path");
 const { secureDelete } = require("./secureDelete");
 const cors = require("cors");
+const mime = require("mime-types");
+
+// ── File Type Whitelisting ──
+const ALLOWED_EXTENSIONS = new Set([
+  // Documents
+  ".txt", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+  ".odt", ".ods", ".odp", ".rtf", ".csv",
+  // Images
+  ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg", ".ico", ".tiff",
+  // Audio
+  ".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a",
+  // Video
+  ".mp4", ".mkv", ".avi", ".mov", ".webm", ".wmv",
+  // Archives
+  ".zip", ".tar", ".gz", ".7z", ".rar", ".bz2",
+  // Data / Config
+  ".json", ".xml", ".yaml", ".yml", ".toml", ".ini", ".env",
+  // Misc
+  ".md", ".log", ".html", ".css",
+]);
+
+const BLOCKED_MIME_PREFIXES = [
+  "application/x-msdownload",   // .exe, .dll
+  "application/x-msdos-program",
+  "application/x-executable",
+  "application/x-sharedlib",
+  "application/x-shellscript",  // .sh
+  "application/x-bat",          // .bat
+  "application/x-msi",          // .msi
+  "application/hta",            // .hta
+  "application/x-httpd-php",    // .php
+];
+
+function validateFileType(filename) {
+  const ext = path.extname(filename).toLowerCase();
+
+  // Check extension whitelist
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    return {
+      allowed: false,
+      reason: `File extension "${ext}" is not allowed. Allowed types: documents, images, audio, video, archives, and data files.`,
+    };
+  }
+
+  // Check MIME type against blocklist
+  const mimeType = mime.lookup(filename) || "application/octet-stream";
+  const isBlockedMime = BLOCKED_MIME_PREFIXES.some((prefix) =>
+    mimeType.startsWith(prefix),
+  );
+
+  if (isBlockedMime) {
+    return {
+      allowed: false,
+      reason: `MIME type "${mimeType}" is blocked for security reasons.`,
+    };
+  }
+
+  return { allowed: true, mimeType, ext };
+}
 
 const app = express();
 
@@ -26,6 +85,14 @@ app.post("/encrypt", (req, res) => {
   if (!filename || !req.body || req.body.length === 0) {
     return res.status(400).json({
       error: "File data or filename missing",
+    });
+  }
+
+  // ── File type validation ──
+  const validation = validateFileType(filename);
+  if (!validation.allowed) {
+    return res.status(415).json({
+      error: validation.reason,
     });
   }
 
@@ -96,7 +163,7 @@ app.post("/decrypt", (req, res) => {
     res.status(200).send(decryptedData);
   } catch (err) {
     res.status(400).json({
-      error: "Decryption failed. Check that the key and IV are correct.",
+      error: "Decryption failed. Check for private key",
     });
   }
 });
@@ -111,7 +178,7 @@ app.post("/secure-delete", (req, res) => {
   if (!filename.endsWith(".enc")) {
     return res.status(400).json({ error: "Only .enc files can be securely deleted" });
   }
-  
+
   const resolved = path.resolve(encryptedDir, path.basename(filename));
   if (!resolved.startsWith(encryptedDir)) {
     return res.status(403).json({ error: "Path traversal detected — access denied" });
