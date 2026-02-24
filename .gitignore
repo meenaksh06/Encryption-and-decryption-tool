@@ -1,1 +1,21 @@
-node_modules
+node_modules/
+
+# Secrets — never commit
+backend/.env
+
+# SQLite database files
+backend/vault.db
+backend/vault.db-shm
+backend/vault.db-wal
+
+# Encrypted user files stored on disk
+backend/encrypted/
+
+# Audit log (runtime file, not source)
+backend/audit.log
+
+# Test files
+backend/test.txt
+
+# OS clutter
+.DS_Store

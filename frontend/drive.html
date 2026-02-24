@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drive — VaultLock</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: #1e2130; border-bottom: 1px solid #2d3348; }
+    .nav-brand { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .nav-links { display: flex; align-items: center; gap: 16px; }
+    .nav-link { font-size: 13px; color: #94a3b8; text-decoration: none; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: background 0.2s; border: none; background: none; }
+    .nav-link:hover { background: #2d3348; color: #e2e8f0; }
+    .nav-link.active { color: #fff; background: #2d3348; }
+    .nav-user { font-size: 12px; color: #64748b; }
+    .logout-btn { font-size: 12px; color: #ef4444; cursor: pointer; border: none; background: none; padding: 6px 10px; border-radius: 6px; }
+    .logout-btn:hover { background: #3f1212; }
+    .main { padding: 28px; max-width: 960px; margin: 0 auto; }
+    .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+    .card { background: #1e2130; border: 1px solid #2d3348; border-radius: 12px; overflow: hidden; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #2d3348; }
+    .toolbar-left { font-size: 13px; color: #64748b; }
+    .search-input { padding: 7px 12px; background: #131620; border: 1px solid #2d3348; border-radius: 7px; color: #e2e8f0; font-size: 13px; outline: none; width: 220px; }
+    .search-input:focus { border-color: #2563eb; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px 16px; border-bottom: 1px solid #2d3348; color: #64748b; font-size: 12px; font-weight: 600; }
+    td { padding: 12px 16px; border-bottom: 1px solid #1a1f2e; font-size: 13px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1a1f2e; }
+    .file-icon { font-size: 18px; margin-right: 8px; }
+    .file-name { font-weight: 500; }
+    .file-orig { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .size-text { color: #64748b; font-size: 12px; }
+    .date-text { color: #64748b; font-size: 12px; }
+    .actions { display: flex; gap: 6px; }
+    .btn { padding: 6px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .btn-download { background: #1e3a5f; color: #93c5fd; }
+    .btn-download:hover { background: #1e40af; color: #bfdbfe; }
+    .btn-rename { background: #2d3348; color: #94a3b8; }
+    .btn-rename:hover { background: #374151; color: #e2e8f0; }
+    .btn-delete { background: #3f1212; color: #fca5a5; }
+    .btn-delete:hover { background: #7f1d1d; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .empty-state { padding: 60px 20px; text-align: center; color: #475569; }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-text { font-size: 15px; font-weight: 500; margin-bottom: 6px; color: #64748b; }
+    .empty-sub { font-size: 13px; }
+    .inline-edit { padding: 5px 8px; background: #131620; border: 1px solid #2563eb; border-radius: 6px; color: #e2e8f0; font-size: 13px; outline: none; width: 180px; }
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; background: #1e2130; border: 1px solid #2d3348; border-radius: 10px; font-size: 13px; color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 999; transition: opacity 0.3s; }
+    .loading { text-align: center; padding: 40px; color: #475569; font-size: 14px; }
+    .stats-bar { display: flex; gap: 20px; margin-bottom: 20px; }
+    .stat { background: #1e2130; border: 1px solid #2d3348; border-radius: 10px; padding: 14px 18px; flex: 1; }
+    .stat-val { font-size: 22px; font-weight: 700; color: #fff; }
+    .stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const API = "http://localhost:8080";
+
+    function fmt(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+    }
+
+    function fmtDate(unix) {
+      return new Date(unix * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function fileIcon(name) {
+      const ext = name.split(".").pop().toLowerCase();
+      if (["jpg","jpeg","png","gif","webp","svg"].includes(ext)) return "🖼️";
+      if (["mp4","mov","avi","mkv","webm"].includes(ext)) return "🎬";
+      if (["mp3","wav","ogg","flac"].includes(ext)) return "🎵";
+      if (["zip","tar","gz","7z"].includes(ext)) return "📦";
+      if (["pdf"].includes(ext)) return "📄";
+      if (["doc","docx"].includes(ext)) return "📝";
+      if (["xls","xlsx"].includes(ext)) return "📊";
+      return "📁";
+    }
+
+    function Nav({ username }) {
+      const logout = () => {
+        localStorage.removeItem("vl_token");
+        localStorage.removeItem("vl_username");
+        window.location.href = "index.html";
+      };
+      return (
+        <nav>
+          <div className="nav-brand">🔐 VaultLock</div>
+          <div className="nav-links">
+            <a className="nav-link" href="workspace.html">Workspace</a>
+            <span className="nav-link active">Drive</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="nav-user">👤 {username}</span>
+            <button className="logout-btn" onClick={logout}>Sign out</button>
+          </div>
+        </nav>
+      );
+    }
+
+    function App() {
+      const token = localStorage.getItem("vl_token");
+      const username = localStorage.getItem("vl_username") || "User";
+      const [files, setFiles] = React.useState([]);
+      const [loading, setLoading] = React.useState(true);
+      const [search, setSearch] = React.useState("");
+      const [editingId, setEditingId] = React.useState(null);
+      const [editVal, setEditVal] = React.useState("");
+      const [toast, setToast] = React.useState("");
+      const [deletingId, setDeletingId] = React.useState(null);
+
+      React.useEffect(() => {
+        if (!token) { window.location.href = "index.html"; return; }
+        loadFiles();
+      }, []);
+
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(""), 3000);
+      };
+
+      const loadFiles = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`${API}/drive/files`, {
+            headers: { "Authorization": `Bearer ${token}` },
+          });
+          if (res.status === 401) { window.location.href = "index.html"; return; }
+          const data = await res.json();
+          setFiles(data);
+        } catch {
+          showToast("❌ Failed to load files");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const download = async (f) => {
+        try {
+          const res = await fetch(`${API}/drive/download/${encodeURIComponent(f.stored_name)}`, {
+            headers: { "Authorization": `Bearer ${token}` },
+          });
+          if (!res.ok) { showToast("❌ Download failed"); return; }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = f.stored_name;
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          showToast("✓ Downloaded " + f.original_name);
+        } catch {
+          showToast("❌ Download error");
+        }
+      };
+
+      const startRename = (f) => {
+        setEditingId(f.id);
+        setEditVal(f.original_name);
+      };
+
+      const confirmRename = async (f) => {
+        if (!editVal.trim() || editVal.trim() === f.original_name) { setEditingId(null); return; }
+        try {
+          const res = await fetch(`${API}/drive/rename/${f.id}`, {
+            method: "PATCH",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ newName: editVal.trim() }),
+          });
+          if (res.ok) {
+            setFiles(prev => prev.map(x => x.id === f.id ? { ...x, original_name: editVal.trim() } : x));
+            showToast("✓ Renamed successfully");
+          } else {
+            showToast("❌ Rename failed");
+          }
+        } catch {
+          showToast("❌ Rename error");
+        }
+        setEditingId(null);
+      };
+
+      const deleteFile = async (f) => {
+        if (!window.confirm(`Securely delete "${f.original_name}"? This cannot be undone.`)) return;
+        setDeletingId(f.id);
+        try {
+          const res = await fetch(`${API}/drive/delete/${f.id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` },
+          });
+          if (res.ok) {
+            setFiles(prev => prev.filter(x => x.id !== f.id));
+            showToast("✓ File securely deleted");
+          } else {
+            showToast("❌ Delete failed");
+          }
+        } catch {
+          showToast("❌ Delete error");
+        }
+        setDeletingId(null);
+      };
+
+      const filtered = files.filter(f =>
+        f.original_name.toLowerCase().includes(search.toLowerCase()) ||
+        f.stored_name.toLowerCase().includes(search.toLowerCase())
+      );
+
+      const totalSize = files.reduce((s, f) => s + f.size_bytes, 0);
+
+      if (!token) return null;
+
+      return (
+        <div>
+          <Nav username={username} />
+          <div className="main">
+            <div className="page-title">Drive</div>
+            <div className="page-sub">Your encrypted file storage</div>
+
+            <div className="stats-bar">
+              <div className="stat">
+                <div className="stat-val">{files.length}</div>
+                <div className="stat-label">Encrypted Files</div>
+              </div>
+              <div className="stat">
+                <div className="stat-val">{fmt(totalSize)}</div>
+                <div className="stat-label">Total Storage Used</div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="toolbar">
+                <div className="toolbar-left">{filtered.length} file{filtered.length !== 1 ? "s" : ""}</div>
+                <input
+                  className="search-input"
+                  placeholder="Search files…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+
+              {loading ? (
+                <div className="loading">⟳ Loading files…</div>
+              ) : filtered.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">🗄️</div>
+                  <div className="empty-text">{search ? "No files match your search" : "Your drive is empty"}</div>
+                  <div className="empty-sub">{!search && "Encrypt files in the Workspace and save them to Drive."}</div>
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Size</th>
+                      <th>Uploaded</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(f => (
+                      <tr key={f.id}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                            <span className="file-icon">{fileIcon(f.original_name)}</span>
+                            <div>
+                              {editingId === f.id ? (
+                                <input
+                                  className="inline-edit"
+                                  value={editVal}
+                                  autoFocus
+                                  onChange={e => setEditVal(e.target.value)}
+                                  onBlur={() => confirmRename(f)}
+                                  onKeyDown={e => { if (e.key === "Enter") confirmRename(f); if (e.key === "Escape") setEditingId(null); }}
+                                />
+                              ) : (
+                                <div className="file-name">{f.original_name}</div>
+                              )}
+                              <div className="file-orig">{f.stored_name}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td><span className="size-text">{fmt(f.size_bytes)}</span></td>
+                        <td><span className="date-text">{fmtDate(f.created_at)}</span></td>
+                        <td>
+                          <div className="actions">
+                            <button className="btn btn-download" onClick={() => download(f)}>⬇ Download</button>
+                            <button className="btn btn-rename" onClick={() => startRename(f)}>✏ Rename</button>
+                            <button className="btn btn-delete" disabled={deletingId === f.id} onClick={() => deleteFile(f)}>
+                              {deletingId === f.id ? "Deleting…" : "🗑 Delete"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {toast && <div className="toast">{toast}</div>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
