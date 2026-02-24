@@ -65,10 +65,10 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 dot-grid relative">
+    <div className="min-h-screen flex items-center justify-center px-6 dot-grid relative bg-gradient-to-br from-[#F9F7FA] via-white to-[#E6F8F5]">
       {/* Background effects */}
-      <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-[var(--color-primary)]/5 rounded-full blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/3 w-[300px] h-[300px] bg-[var(--color-accent)]/5 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-[#4B154D]/10 rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/3 w-[300px] h-[300px] bg-[#00BFA6]/10 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="w-full max-w-md relative">
         {/* Logo */}
@@ -76,19 +76,19 @@ export default function AuthPage() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-accent)] flex items-center justify-center shadow-[var(--shadow-glow)]">
             <LockIcon className="w-5 h-5 text-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-white/95">VaultLock</span>
+          <span className="text-xl font-bold tracking-tight text-gray-800">VaultLock</span>
         </Link>
 
         {/* Card */}
         <div className="glass-card p-8">
           {/* Toggle */}
-          <div className="flex rounded-xl bg-[var(--color-background)]/50 p-1 mb-8">
+          <div className="flex rounded-xl bg-gray-100 p-1 mb-8">
             <button
               onClick={() => { setIsLogin(true); setError(""); }}
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
                 isLogin
                   ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white shadow-lg"
-                  : "text-[var(--color-text-muted)] hover:text-white"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Sign In
@@ -98,31 +98,31 @@ export default function AuthPage() {
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
                 !isLogin
                   ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white shadow-lg"
-                  : "text-[var(--color-text-muted)] hover:text-white"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Create Account
             </button>
           </div>
 
-          <h2 className="text-2xl font-bold mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
             {isLogin ? "Welcome back" : "Create your vault"}
           </h2>
-          <p className="text-sm text-[var(--color-text-muted)] mb-8">
+          <p className="text-sm text-gray-500 mb-8">
             {isLogin
               ? "Sign in to access your encrypted workspace"
               : "Set up your account to start encrypting files"}
           </p>
 
           {error && (
-            <div className="mb-6 px-4 py-3 rounded-xl bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 text-sm text-[var(--color-danger)]">
+            <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-2 uppercase tracking-wider">
+              <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wider">
                 Username
               </label>
               <input
@@ -130,13 +130,13 @@ export default function AuthPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
-                className="w-full px-4 py-3 rounded-xl bg-[var(--color-background)]/80 border border-[var(--color-border)] text-sm text-white placeholder-[var(--color-text-dim)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]/50 transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[#4B154D]/10 transition-all"
                 autoComplete="username"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[var(--color-text-muted)] mb-2 uppercase tracking-wider">
+              <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wider">
                 Password
               </label>
               <div className="relative">
@@ -145,13 +145,13 @@ export default function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full px-4 py-3 rounded-xl bg-[var(--color-background)]/80 border border-[var(--color-border)] text-sm text-white placeholder-[var(--color-text-dim)] outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]/50 transition-all pr-12"
+                  className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[#4B154D]/10 transition-all pr-12"
                   autoComplete={isLogin ? "current-password" : "new-password"}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-dim)] hover:text-white transition-colors p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
                 >
                   {showPassword ? (
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -170,7 +170,7 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={loading || !username.trim() || !password.trim()}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white font-semibold text-sm shadow-xl shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:-translate-y-0.5 disabled:hover:translate-y-0"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white font-semibold text-sm shadow-lg shadow-[#4B154D]/20 hover:shadow-[#4B154D]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:-translate-y-0.5 disabled:hover:translate-y-0"
             >
               {loading
                 ? "Please wait..."
@@ -181,7 +181,7 @@ export default function AuthPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-[var(--color-text-dim)] mt-6">
+        <p className="text-center text-xs text-gray-500 mt-6">
           Your credentials are hashed with bcrypt. We never store plaintext passwords.
         </p>
       </div>

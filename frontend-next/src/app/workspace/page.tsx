@@ -1,10 +1,30 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import Navbar from "@/components/Navbar";
-import { useToast } from "@/components/Toast";
-import { getToken, formatBytes } from "@/lib/api";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Lock,
+  Unlock,
+  Upload,
+  X,
+  Copy,
+  Check,
+  Key,
+  AlertTriangle,
+  FileText,
+  Image as ImageIcon,
+  Video,
+  Music,
+  Archive,
+  FileIcon,
+  HardDrive,
+  Shield,
+} from "lucide-react";
+import { DashboardLayout } from "@/components/layout";
+import { Card, CardSection, Button, Badge, EmptyState } from "@/components/ui";
+import { getToken, formatBytes } from "@/lib/api";
+import { useToast } from "@/components/Toast";
+import SaveToVaultModal from "@/components/SaveToVaultModal";
 
 const API = "http://localhost:8080";
 
@@ -24,6 +44,7 @@ interface EncryptResult {
   sha256: string;
   encName: string;
   error?: string;
+  savedToVault?: boolean;
 }
 
 interface DecryptResult {
@@ -34,8 +55,41 @@ interface DecryptResult {
   error?: string;
 }
 
-function copyText(text: string) {
-  navigator.clipboard.writeText(text).catch(() => {});
+function getFileIcon(name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext))
+    return <ImageIcon className="w-4 h-4" />;
+  if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext))
+    return <Video className="w-4 h-4" />;
+  if (["mp3", "wav", "ogg", "flac"].includes(ext))
+    return <Music className="w-4 h-4" />;
+  if (["zip", "tar", "gz", "7z"].includes(ext))
+    return <Archive className="w-4 h-4" />;
+  if (["pdf", "doc", "docx", "txt", "md"].includes(ext))
+    return <FileText className="w-4 h-4" />;
+  return <FileIcon className="w-4 h-4" />;
+}
+
+function CopyButton({ text, onCopy }: { text: string; onCopy: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      onCopy();
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[10px] text-[var(--color-text-muted)] hover:text-white transition-colors flex items-center gap-1"
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
 }
 
 function EncryptPanel({ token }: { token: string }) {
@@ -46,6 +100,15 @@ function EncryptPanel({ token }: { token: string }) {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { showToast, ToastComponent } = useToast();
+
+  const [vaultModal, setVaultModal] = useState<{
+    open: boolean;
+    key: string;
+    iv: string;
+    filename: string;
+    sha256: string;
+    resultIndex: number;
+  }>({ open: false, key: "", iv: "", filename: "", sha256: "", resultIndex: -1 });
 
   const addFiles = (incoming: FileList | null) => {
     if (!incoming) return;
@@ -108,7 +171,6 @@ function EncryptPanel({ token }: { token: string }) {
         const sha256 = res.headers.get("X-SHA256") || "";
         const encName = res.headers.get("X-Encrypted-Filename") || f.name + ".enc";
 
-        // Auto-download the encrypted file
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -136,6 +198,26 @@ function EncryptPanel({ token }: { token: string }) {
     showToast("Encryption complete!", "success");
   };
 
+  const openVaultModal = (result: EncryptResult, index: number) => {
+    setVaultModal({
+      open: true,
+      key: result.key,
+      iv: result.iv,
+      filename: result.name,
+      sha256: result.sha256,
+      resultIndex: index,
+    });
+  };
+
+  const handleVaultSaved = () => {
+    setResults((prev) =>
+      prev.map((r, idx) =>
+        idx === vaultModal.resultIndex ? { ...r, savedToVault: true } : r
+      )
+    );
+    showToast("Key saved to vault", "success");
+  };
+
   const done = results.filter((r) => r.status === "ok").length;
   const total = results.length;
 
@@ -143,43 +225,48 @@ function EncryptPanel({ token }: { token: string }) {
     <div className="space-y-6">
       {ToastComponent}
 
-      {/* Drop zone */}
-      <div className="glass-card p-8">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-5">
-          Select Files to Encrypt
-        </h3>
-        <div
-          className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 ${
-            drag
-              ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5"
-              : "border-[var(--color-border)] hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-hover)]/30"
-          }`}
-          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-          onDragLeave={() => setDrag(false)}
-          onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
-          onClick={() => inputRef.current?.click()}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => addFiles(e.target.files)}
-          />
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-accent)]/20 flex items-center justify-center mb-4">
-            <svg className="w-7 h-7 text-[var(--color-primary-hover)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-            </svg>
-          </div>
-          <p className="text-sm font-medium text-[var(--color-text-muted)]">
-            Click to select or drag & drop files
-          </p>
-          <p className="text-xs text-[var(--color-text-dim)] mt-2">
-            Documents, images, audio, video, archives — max 100 MB each
-          </p>
-        </div>
+      <SaveToVaultModal
+        isOpen={vaultModal.open}
+        onClose={() => setVaultModal((v) => ({ ...v, open: false }))}
+        encryptionKey={vaultModal.key}
+        iv={vaultModal.iv}
+        filename={vaultModal.filename}
+        sha256={vaultModal.sha256}
+        onSaved={handleVaultSaved}
+      />
 
-        {/* File list */}
+      <Card>
+        <CardSection title="Select Files to Encrypt">
+          <div
+            className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 ${
+              drag
+                ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5"
+                : "border-[var(--color-border)] hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-hover)]/30"
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
+            onClick={() => inputRef.current?.click()}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-accent)]/20 flex items-center justify-center mb-4">
+              <Upload className="w-7 h-7 text-[var(--color-primary-hover)]" />
+            </div>
+            <p className="text-sm font-medium text-[var(--color-text-muted)]">
+              Click to select or drag & drop files
+            </p>
+            <p className="text-xs text-[var(--color-text-dim)] mt-2">
+              Documents, images, audio, video, archives — max 100 MB each
+            </p>
+          </div>
+        </CardSection>
+
         {files.length > 0 && (
           <div className="mt-5 space-y-2">
             {files.map((f) => (
@@ -188,9 +275,7 @@ function EncryptPanel({ token }: { token: string }) {
                 className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--color-background)]/50 border border-[var(--color-border)]/50"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <svg className="w-4 h-4 text-[var(--color-text-dim)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
+                  <span className="text-[var(--color-text-dim)]">{getFileIcon(f.name)}</span>
                   <span className="text-sm font-medium truncate">{f.name}</span>
                   <span className="text-xs text-[var(--color-text-dim)] flex-shrink-0">
                     {formatBytes(f.size)}
@@ -200,26 +285,24 @@ function EncryptPanel({ token }: { token: string }) {
                   onClick={() => remove(f.name)}
                   className="p-1 rounded-lg hover:bg-[var(--color-danger)]/10 text-[var(--color-text-dim)] hover:text-[var(--color-danger)] transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex flex-wrap items-center gap-4 mt-6">
-          <button
+          <Button
             onClick={encryptAll}
             disabled={!files.length || running}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white text-sm font-semibold shadow-lg shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:-translate-y-0.5 disabled:hover:translate-y-0"
+            loading={running}
+            icon={<Lock className="w-4 h-4" />}
           >
             {running
               ? `Encrypting ${done}/${total}...`
               : `Encrypt ${files.length || ""} File${files.length !== 1 ? "s" : ""}`}
-          </button>
+          </Button>
           <label className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] cursor-pointer">
             <input
               type="checkbox"
@@ -227,108 +310,110 @@ function EncryptPanel({ token }: { token: string }) {
               onChange={(e) => setSaveToDrive(e.target.checked)}
               className="w-4 h-4 rounded accent-[var(--color-primary)]"
             />
+            <HardDrive className="w-4 h-4" />
             Save to Drive
           </label>
           {files.length > 0 && !running && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => { setFiles([]); setResults([]); }}
-              className="px-4 py-2 rounded-xl bg-[var(--color-surface-hover)] text-sm text-[var(--color-text-muted)] hover:text-white transition-colors"
             >
               Clear all
-            </button>
+            </Button>
           )}
         </div>
-        <p className="text-xs text-[var(--color-text-dim)] mt-4">
-          Each file is encrypted independently with a unique AES-256 key and IV.
-        </p>
-      </div>
 
-      {/* Results */}
-      {results.length > 0 && (
-        <div className="glass-card p-8">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-5">
-            Encryption Results
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-border)]">
-                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">File</th>
-                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Status</th>
-                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Private Key</th>
-                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">IV</th>
-                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">SHA-256</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((r, i) => (
-                  <tr key={i} className="border-b border-[var(--color-border)]/50 last:border-0">
-                    <td className="py-3 px-3">
-                      <div className="font-medium">{r.name}</div>
-                      <div className="text-xs text-[var(--color-text-dim)]">{formatBytes(r.size)}</div>
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        r.status === "ok"
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : r.status === "error"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-amber-500/10 text-amber-400"
-                      }`}>
-                        {r.status === "ok" ? "✓ Done" : r.status === "error" ? "✗ Error" : "⟳ Encrypting"}
-                      </span>
-                      {r.error && (
-                        <div className="text-xs text-red-400 mt-1">{r.error}</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      {r.key && (
-                        <div className="flex items-center gap-2">
-                          <code className="text-[10px] font-mono text-cyan-400">{r.key.slice(0, 16)}…</code>
-                          <button
-                            onClick={() => { copyText(r.key); showToast("Key copied!", "success"); }}
-                            className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[10px] text-[var(--color-text-muted)] hover:text-white transition-colors"
-                          >
-                            copy
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      {r.iv && (
-                        <div className="flex items-center gap-2">
-                          <code className="text-[10px] font-mono text-cyan-400">{r.iv.slice(0, 16)}…</code>
-                          <button
-                            onClick={() => { copyText(r.iv); showToast("IV copied!", "success"); }}
-                            className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[10px] text-[var(--color-text-muted)] hover:text-white transition-colors"
-                          >
-                            copy
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      {r.sha256 && (
-                        <div className="flex items-center gap-2">
-                          <code className="text-[10px] font-mono text-cyan-400">{r.sha256.slice(0, 16)}…</code>
-                          <button
-                            onClick={() => { copyText(r.sha256); showToast("Hash copied!", "success"); }}
-                            className="px-2 py-0.5 rounded-md bg-[var(--color-surface-hover)] text-[10px] text-[var(--color-text-muted)] hover:text-white transition-colors"
-                          >
-                            copy
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-amber-400/70 mt-4">
-            ⚠ Save your keys — they are NOT stored on the server. Without the key and IV you cannot decrypt your files.
+        <div className="flex items-center gap-2 mt-4 px-4 py-3 rounded-xl bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/10">
+          <Shield className="w-4 h-4 text-[var(--color-primary)]" />
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Each file is encrypted independently with a unique AES-256 key and IV.
           </p>
         </div>
+      </Card>
+
+      {results.length > 0 && (
+        <Card>
+          <CardSection title="Encryption Results">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)]">
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">File</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Status</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Private Key</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">IV</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.map((r, i) => (
+                    <tr key={i} className="border-b border-[var(--color-border)]/50 last:border-0">
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[var(--color-text-dim)]">{getFileIcon(r.name)}</span>
+                          <div>
+                            <div className="font-medium">{r.name}</div>
+                            <div className="text-xs text-[var(--color-text-dim)]">{formatBytes(r.size)}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        <Badge
+                          variant={
+                            r.status === "ok" ? "success" : r.status === "error" ? "danger" : "warning"
+                          }
+                          dot
+                        >
+                          {r.status === "ok" ? "Done" : r.status === "error" ? "Error" : "Encrypting"}
+                        </Badge>
+                        {r.error && (
+                          <div className="text-xs text-red-400 mt-1">{r.error}</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        {r.key && (
+                          <div className="flex items-center gap-2">
+                            <code className="text-[10px] font-mono text-cyan-400">{r.key.slice(0, 16)}...</code>
+                            <CopyButton text={r.key} onCopy={() => showToast("Key copied!", "success")} />
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        {r.iv && (
+                          <div className="flex items-center gap-2">
+                            <code className="text-[10px] font-mono text-cyan-400">{r.iv.slice(0, 16)}...</code>
+                            <CopyButton text={r.iv} onCopy={() => showToast("IV copied!", "success")} />
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        {r.status === "ok" && (
+                          <Button
+                            variant={r.savedToVault ? "success" : "secondary"}
+                            size="sm"
+                            icon={r.savedToVault ? <Check className="w-3 h-3" /> : <Key className="w-3 h-3" />}
+                            onClick={() => !r.savedToVault && openVaultModal(r, i)}
+                            disabled={r.savedToVault}
+                          >
+                            {r.savedToVault ? "Saved" : "Save to Vault"}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center gap-2 mt-4 px-4 py-3 rounded-xl bg-[#00BFA6]/5 border border-[#00BFA6]/15">
+              <AlertTriangle className="w-4 h-4 text-[#009E8A]" />
+              <p className="text-xs text-[#009E8A]">
+                Save your keys — they are NOT stored on the server. Without the key and IV you cannot decrypt your files.
+              </p>
+            </div>
+          </CardSection>
+        </Card>
       )}
     </div>
   );
@@ -469,171 +554,156 @@ function DecryptPanel({ token }: { token: string }) {
     <div className="space-y-6">
       {ToastComponent}
 
-      <div className="glass-card p-8">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-5">
-          Select Encrypted Files (.enc)
-        </h3>
-        <div
-          className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 ${
-            drag
-              ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5"
-              : "border-[var(--color-border)] hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-hover)]/30"
-          }`}
-          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-          onDragLeave={() => setDrag(false)}
-          onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
-          onClick={() => inputRef.current?.click()}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            accept=".enc"
-            className="hidden"
-            onChange={(e) => addFiles(e.target.files)}
-          />
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-4">
-            <svg className="w-7 h-7 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-            </svg>
+      <Card>
+        <CardSection title="Select Encrypted Files (.enc)">
+          <div
+            className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 ${
+              drag
+                ? "border-[#00BFA6] bg-[#00BFA6]/5"
+                : "border-[var(--color-border)] hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-hover)]/30"
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
+            onClick={() => inputRef.current?.click()}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept=".enc"
+              className="hidden"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[#00BFA6]/20 to-[#4B154D]/15 flex items-center justify-center mb-4">
+              <Unlock className="w-7 h-7 text-[#00BFA6]" />
+            </div>
+            <p className="text-sm font-medium text-[var(--color-text-muted)]">
+              Click to select or drag & drop .enc files
+            </p>
           </div>
-          <p className="text-sm font-medium text-[var(--color-text-muted)]">
-            Click to select or drag & drop .enc files
-          </p>
-        </div>
+        </CardSection>
 
-        {/* Credential inputs */}
         {files.length > 0 && (
           <div className="mt-6">
             <p className="text-xs text-[var(--color-text-dim)] mb-4">
               Enter the key and IV for each file. SHA-256 is optional (for integrity check).
             </p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--color-border)]">
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-[var(--color-text-dim)]">File</th>
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-[var(--color-text-dim)]">Private Key (64 hex)</th>
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-[var(--color-text-dim)]">IV (32 hex)</th>
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-[var(--color-text-dim)]">SHA-256 (optional)</th>
-                    <th className="w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {files.map((f) => (
-                    <tr key={f.name} className="border-b border-[var(--color-border)]/50 last:border-0">
-                      <td className="py-2 px-2">
-                        <div className="text-xs font-medium truncate max-w-[120px]">{f.name}</div>
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          className="w-full px-3 py-2 rounded-lg bg-[var(--color-background)]/80 border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
-                          placeholder="64-char hex key"
-                          value={credentials[f.name]?.key || ""}
-                          onChange={(e) => setCred(f.name, "key", e.target.value)}
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          className="w-full px-3 py-2 rounded-lg bg-[var(--color-background)]/80 border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
-                          placeholder="32-char hex IV"
-                          value={credentials[f.name]?.iv || ""}
-                          onChange={(e) => setCred(f.name, "iv", e.target.value)}
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          className="w-full px-3 py-2 rounded-lg bg-[var(--color-background)]/80 border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
-                          placeholder="64-char SHA-256"
-                          value={credentials[f.name]?.hash || ""}
-                          onChange={(e) => setCred(f.name, "hash", e.target.value)}
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <button
-                          onClick={() => remove(f.name)}
-                          className="p-1 rounded-lg hover:bg-[var(--color-danger)]/10 text-[var(--color-text-dim)] hover:text-[var(--color-danger)] transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {files.map((f) => (
+                <div
+                  key={f.name}
+                  className="p-4 rounded-xl bg-[var(--color-background)]/50 border border-[var(--color-border)]/50"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-[#00BFA6]" />
+                      <span className="text-sm font-medium truncate">{f.name}</span>
+                    </div>
+                    <button
+                      onClick={() => remove(f.name)}
+                      className="p-1 rounded-lg hover:bg-[var(--color-danger)]/10 text-[var(--color-text-dim)] hover:text-[var(--color-danger)] transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <input
+                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
+                      placeholder="64-char hex key"
+                      value={credentials[f.name]?.key || ""}
+                      onChange={(e) => setCred(f.name, "key", e.target.value)}
+                    />
+                    <input
+                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
+                      placeholder="32-char hex IV"
+                      value={credentials[f.name]?.iv || ""}
+                      onChange={(e) => setCred(f.name, "iv", e.target.value)}
+                    />
+                    <input
+                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
+                      placeholder="SHA-256 (optional)"
+                      value={credentials[f.name]?.hash || ""}
+                      onChange={(e) => setCred(f.name, "hash", e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
         <div className="flex flex-wrap items-center gap-4 mt-6">
-          <button
+          <Button
             onClick={decryptAll}
             disabled={!files.length || running}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:-translate-y-0.5 disabled:hover:translate-y-0"
+            loading={running}
+            icon={<Unlock className="w-4 h-4" />}
+            className="bg-gradient-to-r from-[#00BFA6] to-[#009E8A] shadow-[#00BFA6]/20 hover:shadow-[#00BFA6]/30"
           >
             {running
               ? `Decrypting ${done}/${total}...`
               : `Decrypt ${files.length || ""} File${files.length !== 1 ? "s" : ""}`}
-          </button>
+          </Button>
           {files.length > 0 && !running && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => { setFiles([]); setCredentials({}); setResults([]); }}
-              className="px-4 py-2 rounded-xl bg-[var(--color-surface-hover)] text-sm text-[var(--color-text-muted)] hover:text-white transition-colors"
             >
               Clear all
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </Card>
 
-      {/* Decryption Results */}
       {results.length > 0 && (
-        <div className="glass-card p-8">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)] mb-5">
-            Decryption Results
-          </h3>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--color-border)]">
-                <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">File</th>
-                <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Status</th>
-                <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Integrity</th>
-                <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">SHA-256</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r, i) => (
-                <tr key={i} className="border-b border-[var(--color-border)]/50 last:border-0">
-                  <td className="py-3 px-3 font-medium">{r.name}</td>
-                  <td className="py-3 px-3">
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      r.status === "ok"
-                        ? "bg-emerald-500/10 text-emerald-400"
-                        : r.status === "error"
-                        ? "bg-red-500/10 text-red-400"
-                        : "bg-amber-500/10 text-amber-400"
-                    }`}>
-                      {r.status === "ok" ? "✓ Done" : r.status === "error" ? "✗ Error" : "⟳ Decrypting"}
-                    </span>
-                    {r.error && <div className="text-xs text-red-400 mt-1">{r.error}</div>}
-                  </td>
-                  <td className="py-3 px-3">
-                    {r.integrity === "pass" && <span className="text-emerald-400 text-xs font-semibold">✓ Verified</span>}
-                    {r.integrity === "fail" && <span className="text-red-400 text-xs font-semibold">✗ Tampered</span>}
-                    {r.integrity === null && r.status === "ok" && (
-                      <span className="text-[var(--color-text-dim)] text-xs">No hash provided</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-3">
-                    {r.hash && <code className="text-[10px] font-mono text-cyan-400">{r.hash.slice(0, 20)}…</code>}
-                  </td>
+        <Card>
+          <CardSection title="Decryption Results">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border)]">
+                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">File</th>
+                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Status</th>
+                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">Integrity</th>
+                  <th className="text-left py-3 px-3 text-xs font-semibold text-[var(--color-text-dim)] uppercase tracking-wider">SHA-256</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={i} className="border-b border-[var(--color-border)]/50 last:border-0">
+                    <td className="py-3 px-3 font-medium">{r.name}</td>
+                    <td className="py-3 px-3">
+                      <Badge
+                        variant={
+                          r.status === "ok" ? "success" : r.status === "error" ? "danger" : "warning"
+                        }
+                        dot
+                      >
+                        {r.status === "ok" ? "Done" : r.status === "error" ? "Error" : "Decrypting"}
+                      </Badge>
+                      {r.error && <div className="text-xs text-red-400 mt-1">{r.error}</div>}
+                    </td>
+                    <td className="py-3 px-3">
+                      {r.integrity === "pass" && (
+                        <Badge variant="success" dot>Verified</Badge>
+                      )}
+                      {r.integrity === "fail" && (
+                        <Badge variant="danger" dot>Tampered</Badge>
+                      )}
+                      {r.integrity === null && r.status === "ok" && (
+                        <span className="text-[var(--color-text-dim)] text-xs">No hash provided</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3">
+                      {r.hash && <code className="text-[10px] font-mono text-cyan-400">{r.hash.slice(0, 20)}...</code>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardSection>
+        </Card>
       )}
     </div>
   );
@@ -643,7 +713,6 @@ export default function WorkspacePage() {
   const router = useRouter();
   const [tab, setTab] = useState<"encrypt" | "decrypt">("encrypt");
   const [token, setToken] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const t = getToken();
@@ -652,60 +721,52 @@ export default function WorkspacePage() {
       return;
     }
     setToken(t);
-    setMounted(true);
   }, [router]);
 
-  if (!token || !mounted) return null;
+  if (!token) return null;
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-      <div className="max-w-5xl mx-auto px-6 pt-24 pb-16">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black tracking-tight">Workspace</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Encrypt or decrypt multiple files at once
-          </p>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex rounded-xl bg-[var(--color-surface)] p-1 border border-[var(--color-border)] w-fit mb-8">
-          <button
-            onClick={() => setTab("encrypt")}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
-              tab === "encrypt"
-                ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white shadow-lg"
-                : "text-[var(--color-text-muted)] hover:text-white"
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-            </svg>
-            Encrypt
-          </button>
-          <button
-            onClick={() => setTab("decrypt")}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
-              tab === "decrypt"
-                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg"
-                : "text-[var(--color-text-muted)] hover:text-white"
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-            </svg>
-            Decrypt
-          </button>
-        </div>
-
-        {/* Panel */}
-        {tab === "encrypt" ? (
-          <EncryptPanel token={token} />
-        ) : (
-          <DecryptPanel token={token} />
-        )}
+    <DashboardLayout
+      title="Workspace"
+      description="Encrypt or decrypt files with AES-256 encryption"
+    >
+      <div className="flex rounded-xl bg-[var(--color-surface)] p-1 border border-[var(--color-border)] w-fit mb-8">
+        <button
+          onClick={() => setTab("encrypt")}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+            tab === "encrypt"
+              ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white shadow-lg"
+              : "text-[var(--color-text-muted)] hover:text-white"
+          }`}
+        >
+          <Lock className="w-4 h-4" />
+          Encrypt
+        </button>
+        <button
+          onClick={() => setTab("decrypt")}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+            tab === "decrypt"
+              ? "bg-gradient-to-r from-[#00BFA6] to-[#009E8A] text-white shadow-lg"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+          }`}
+        >
+          <Unlock className="w-4 h-4" />
+          Decrypt
+        </button>
       </div>
-    </div>
+
+      {tab === "encrypt" ? (
+        <EncryptPanel token={token} />
+      ) : (
+        <DecryptPanel token={token} />
+      )}
+    </DashboardLayout>
   );
 }
+
+
+
+
+
+
+

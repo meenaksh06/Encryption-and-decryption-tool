@@ -1,23 +1,48 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Navbar from "@/components/Navbar";
-import { useToast } from "@/components/Toast";
-import { getToken, getUsername, formatBytes } from "@/lib/api";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import {
+  HardDrive,
+  Download,
+  Pencil,
+  Trash2,
+  Image as ImageIcon,
+  Video,
+  Music,
+  Archive,
+  FileText,
+  FileIcon,
+  FolderOpen,
+  Lock,
+  Check,
+  X,
+  Shield,
+} from "lucide-react";
+import { DashboardLayout } from "@/components/layout";
+import { Card, Button, LoadingState, EmptyState, ErrorState } from "@/components/ui";
+import { getToken, formatBytes } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 const API = "http://localhost:8080";
 
-function fileIcon(name: string) {
+function getFileIcon(name: string) {
   const ext = name.split(".").pop()?.toLowerCase() || "";
-  if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)) return "🖼️";
-  if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "🎬";
-  if (["mp3", "wav", "ogg", "flac"].includes(ext)) return "🎵";
-  if (["zip", "tar", "gz", "7z"].includes(ext)) return "📦";
-  if (["pdf"].includes(ext)) return "📄";
-  if (["doc", "docx"].includes(ext)) return "📝";
-  if (["xls", "xlsx"].includes(ext)) return "📊";
-  return "📁";
+  if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext))
+    return <ImageIcon className="w-5 h-5 text-[#5C1B60]" />;
+  if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext))
+    return <Video className="w-5 h-5 text-[#4B154D]" />;
+  if (["mp3", "wav", "ogg", "flac"].includes(ext))
+    return <Music className="w-5 h-5 text-[#00BFA6]" />;
+  if (["zip", "tar", "gz", "7z"].includes(ext))
+    return <Archive className="w-5 h-5 text-[#009E8A]" />;
+  if (["pdf"].includes(ext))
+    return <FileText className="w-5 h-5 text-red-400" />;
+  if (["doc", "docx", "txt", "md"].includes(ext))
+    return <FileText className="w-5 h-5 text-blue-400" />;
+  if (["xls", "xlsx"].includes(ext))
+    return <FileText className="w-5 h-5 text-[#00BFA6]" />;
+  return <FileIcon className="w-5 h-5 text-[var(--color-text-dim)]" />;
 }
 
 function fmtDate(unix: number) {
@@ -40,11 +65,36 @@ export default function DrivePage() {
   const [token, setToken] = useState<string | null>(null);
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editVal, setEditVal] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const { showToast, ToastComponent } = useToast();
+
+  const loadFiles = useCallback(async (t: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/drive/files`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      if (res.status === 401) {
+        router.replace("/auth");
+        return;
+      }
+      if (!res.ok) {
+        setError("Failed to load files");
+        return;
+      }
+      const data = await res.json();
+      setFiles(data);
+    } catch {
+      setError("Failed to load files");
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
 
   useEffect(() => {
     const t = getToken();
@@ -54,26 +104,7 @@ export default function DrivePage() {
     }
     setToken(t);
     loadFiles(t);
-  }, [router]);
-
-  const loadFiles = async (t: string) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API}/drive/files`, {
-        headers: { Authorization: `Bearer ${t}` },
-      });
-      if (res.status === 401) {
-        router.replace("/auth");
-        return;
-      }
-      const data = await res.json();
-      setFiles(data);
-    } catch {
-      showToast("Failed to load files", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [router, loadFiles]);
 
   const download = async (f: DriveFile) => {
     if (!token) return;
@@ -170,95 +201,94 @@ export default function DrivePage() {
   if (!token) return null;
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
+    <DashboardLayout
+      title="Drive"
+      description="Your encrypted file storage"
+      showSearch
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Search files..."
+    >
       {ToastComponent}
 
-      <div className="max-w-5xl mx-auto px-6 pt-24 pb-16">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-black tracking-tight">Drive</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
-            Your encrypted file storage
-          </p>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <Card>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-primary)]/10 flex items-center justify-center">
+              <HardDrive className="w-5 h-5 text-[var(--color-primary)]" />
+            </div>
+            <div>
+              <div className="text-2xl font-black">{files.length}</div>
+              <div className="text-xs text-[var(--color-text-dim)]">Encrypted Files</div>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+              <Archive className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <div className="text-2xl font-black">{formatBytes(totalSize)}</div>
+              <div className="text-xs text-[var(--color-text-dim)]">Total Storage</div>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#00BFA6]/10 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-[#00BFA6]" />
+            </div>
+            <div>
+              <div className="text-2xl font-black gradient-text">AES-256</div>
+              <div className="text-xs text-[var(--color-text-dim)]">Encryption</div>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#00BFA6]/10 flex items-center justify-center">
+              <Lock className="w-5 h-5 text-[#00BFA6]" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-[#00BFA6]">Secure</div>
+              <div className="text-xs text-[var(--color-text-dim)]">Vault Status</div>
+            </div>
+          </div>
+        </Card>
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="glass-card p-5">
-            <div className="text-2xl font-black">{files.length}</div>
-            <div className="text-xs text-[var(--color-text-dim)] mt-1">
-              Encrypted Files
+      {/* File table */}
+      <Card padding="none">
+        {loading ? (
+          <LoadingState message="Loading files..." />
+        ) : error ? (
+          <ErrorState message={error} onRetry={() => token && loadFiles(token)} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<FolderOpen className="w-8 h-8" />}
+            title={search ? "No files match your search" : "Your drive is empty"}
+            description={
+              search
+                ? "Try a different search term"
+                : "Encrypt files in the Workspace and save them to Drive."
+            }
+            action={
+              !search
+                ? { label: "Go to Workspace", onClick: () => router.push("/workspace") }
+                : undefined
+            }
+          />
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]/50">
+              <span className="text-sm text-[var(--color-text-dim)]">
+                {filtered.length} file{filtered.length !== 1 ? "s" : ""}
+              </span>
             </div>
-          </div>
-          <div className="glass-card p-5">
-            <div className="text-2xl font-black">{formatBytes(totalSize)}</div>
-            <div className="text-xs text-[var(--color-text-dim)] mt-1">
-              Total Storage
-            </div>
-          </div>
-          <div className="glass-card p-5">
-            <div className="text-2xl font-black gradient-text">AES-256</div>
-            <div className="text-xs text-[var(--color-text-dim)] mt-1">
-              Encryption Standard
-            </div>
-          </div>
-          <div className="glass-card p-5">
-            <div className="text-2xl font-black text-emerald-400">Secure</div>
-            <div className="text-xs text-[var(--color-text-dim)] mt-1">
-              Vault Status
-            </div>
-          </div>
-        </div>
 
-        {/* File table */}
-        <div className="glass-card overflow-hidden">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]/50">
-            <span className="text-sm text-[var(--color-text-dim)]">
-              {filtered.length} file{filtered.length !== 1 ? "s" : ""}
-            </span>
-            <div className="relative">
-              <svg
-                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-dim)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-                />
-              </svg>
-              <input
-                className="pl-9 pr-4 py-2 rounded-xl bg-[var(--color-background)]/80 border border-[var(--color-border)] text-sm text-white outline-none focus:border-[var(--color-primary)] transition-colors w-56"
-                placeholder="Search files…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="p-16 text-center text-[var(--color-text-dim)]">
-              <div className="animate-spin w-6 h-6 mx-auto border-2 border-[var(--color-primary)] border-t-transparent rounded-full mb-3" />
-              <p className="text-sm">Loading files…</p>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="p-16 text-center">
-              <div className="text-4xl mb-4">🗄️</div>
-              <p className="text-sm font-medium text-[var(--color-text-muted)]">
-                {search ? "No files match your search" : "Your drive is empty"}
-              </p>
-              {!search && (
-                <p className="text-xs text-[var(--color-text-dim)] mt-2">
-                  Encrypt files in the Workspace and save them to Drive.
-                </p>
-              )}
-            </div>
-          ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -285,20 +315,33 @@ export default function DrivePage() {
                     >
                       <td className="py-3 px-6">
                         <div className="flex items-start gap-3">
-                          <span className="text-lg mt-0.5">{fileIcon(f.original_name)}</span>
+                          {getFileIcon(f.original_name)}
                           <div>
                             {editingId === f.id ? (
-                              <input
-                                className="px-2 py-1 rounded-lg bg-[var(--color-background)] border border-[var(--color-primary)] text-sm text-white outline-none w-48"
-                                value={editVal}
-                                autoFocus
-                                onChange={(e) => setEditVal(e.target.value)}
-                                onBlur={() => confirmRename(f)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") confirmRename(f);
-                                  if (e.key === "Escape") setEditingId(null);
-                                }}
-                              />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  className="px-2 py-1 rounded-lg bg-[var(--color-background)] border border-[var(--color-primary)] text-sm text-white outline-none w-48"
+                                  value={editVal}
+                                  autoFocus
+                                  onChange={(e) => setEditVal(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") confirmRename(f);
+                                    if (e.key === "Escape") setEditingId(null);
+                                  }}
+                                />
+                                <button
+                                  onClick={() => confirmRename(f)}
+                                  className="p-1 rounded-lg hover:bg-[#00BFA6]/10 text-[#00BFA6] transition-colors"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setEditingId(null)}
+                                  className="p-1 rounded-lg hover:bg-[var(--color-danger)]/10 text-[var(--color-text-dim)] hover:text-[var(--color-danger)] transition-colors"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
                             ) : (
                               <div className="text-sm font-medium">{f.original_name}</div>
                             )}
@@ -320,25 +363,31 @@ export default function DrivePage() {
                       </td>
                       <td className="py-3 px-6">
                         <div className="flex items-center justify-end gap-2">
-                          <button
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            icon={<Download className="w-3.5 h-3.5" />}
                             onClick={() => download(f)}
-                            className="px-3 py-1.5 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary-hover)] text-xs font-semibold hover:bg-[var(--color-primary)]/20 transition-colors"
                           >
-                            ⬇ Download
-                          </button>
-                          <button
+                            Download
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={<Pencil className="w-3.5 h-3.5" />}
                             onClick={() => startRename(f)}
-                            className="px-3 py-1.5 rounded-lg bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] text-xs font-semibold hover:text-white transition-colors"
                           >
-                            ✏ Rename
-                          </button>
-                          <button
-                            disabled={deletingId === f.id}
+                            Rename
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            icon={<Trash2 className="w-3.5 h-3.5" />}
                             onClick={() => deleteFile(f)}
-                            className="px-3 py-1.5 rounded-lg bg-[var(--color-danger)]/10 text-red-400 text-xs font-semibold hover:bg-[var(--color-danger)]/20 transition-colors disabled:opacity-50"
+                            loading={deletingId === f.id}
                           >
-                            {deletingId === f.id ? "Deleting…" : "🗑 Delete"}
-                          </button>
+                            Delete
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -346,9 +395,17 @@ export default function DrivePage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
-      </div>
-    </div>
+          </>
+        )}
+      </Card>
+    </DashboardLayout>
   );
 }
+
+
+
+
+
+
+
+

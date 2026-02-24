@@ -4,34 +4,49 @@
 
 @layer base {
   :root {
-    /* Midnight + Cyan/Violet theme */
-    --color-background: #050508;
-    --color-surface: #0c0c10;
-    --color-surface-hover: #12121a;
-    --color-surface-elevated: #16161f;
-    --color-border: rgba(255, 255, 255, 0.07);
-    --color-border-subtle: rgba(255, 255, 255, 0.04);
-    --color-primary: #06b6d4;
-    --color-primary-hover: #22d3ee;
-    --color-primary-muted: rgba(6, 182, 212, 0.15);
-    --color-accent: #8b5cf6;
-    --color-accent-muted: rgba(139, 92, 246, 0.15);
-    --color-success: #10b981;
+    /* VaultLock Brand Theme */
+    --color-background: #FFFFFF;
+    --color-surface: #FFFFFF;
+    --color-surface-hover: #F9F7FA;
+    --color-surface-elevated: #FFFFFF;
+    --color-surface-alt: #F9F7FA;
+    --color-border: #E8E6EA;
+    --color-border-subtle: rgba(75, 21, 77, 0.06);
+
+    /* Primary Brand - Deep Purple */
+    --color-primary: #4B154D;
+    --color-primary-hover: #5C1B60;
+    --color-primary-deep: #2F0C31;
+    --color-primary-muted: rgba(75, 21, 77, 0.12);
+
+    /* Accent - Trust + Growth Teal */
+    --color-accent: #00BFA6;
+    --color-accent-hover: #009E8A;
+    --color-accent-light: #E6F8F5;
+    --color-accent-muted: rgba(0, 191, 166, 0.12);
+
+    /* Semantic colors */
+    --color-success: #00BFA6;
     --color-danger: #ef4444;
     --color-warning: #f59e0b;
-    --color-text: #f1f5f9;
-    --color-text-muted: #94a3b8;
-    --color-text-dim: #64748b;
-    --color-glass: rgba(5, 5, 8, 0.88);
-    --color-glass-border: rgba(255, 255, 255, 0.06);
+    --color-info: #3b82f6;
+
+    /* Text colors */
+    --color-text: #1A1A1A;
+    --color-text-muted: #555555;
+    --color-text-dim: #888888;
+
+    /* Glass effect */
+    --color-glass: rgba(255, 255, 255, 0.92);
+    --color-glass-border: rgba(75, 21, 77, 0.08);
 
     --font-sans: 'DM Sans', 'Inter', system-ui, sans-serif;
     --font-display: 'Outfit', var(--font-sans);
-    --radius-card: 16px;
-    --radius-button: 12px;
-    --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.3);
-    --shadow-card: 0 12px 40px -12px rgba(0, 0, 0, 0.4);
-    --shadow-glow: 0 0 40px rgba(6, 182, 212, 0.15);
+    --radius-card: 20px;
+    --radius-button: 14px;
+    --shadow-soft: 0 4px 20px rgba(75, 21, 77, 0.06);
+    --shadow-card: 0 8px 30px -8px rgba(75, 21, 77, 0.12);
+    --shadow-glow: 0 0 40px rgba(75, 21, 77, 0.2);
 
     --animate-float: float 6s ease-in-out infinite;
     --animate-float-delayed: float 6s ease-in-out 2s infinite;
@@ -49,8 +64,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.5; box-shadow: 0 0 24px rgba(6, 182, 212, 0.12); }
-  50% { opacity: 0.9; box-shadow: 0 0 48px rgba(6, 182, 212, 0.2); }
+  0%, 100% { opacity: 0.5; box-shadow: 0 0 24px rgba(75, 21, 77, 0.15); }
+  50% { opacity: 0.9; box-shadow: 0 0 48px rgba(75, 21, 77, 0.25); }
 }
 
 @keyframes fade-in-up {
@@ -123,20 +138,20 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-background);
+  background: var(--color-surface-hover);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #d1d5db;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #9ca3af;
 }
 
 .glass-card {
@@ -145,10 +160,11 @@ body {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--color-glass-border);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 40%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #4B154D 0%, #5C1B60 40%, #00BFA6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -167,13 +183,13 @@ body {
 
 .grid-bg {
   background-image:
-    linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(75, 21, 77, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(75, 21, 77, 0.04) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
 .dot-grid {
-  background-image: radial-gradient(rgba(6, 182, 212, 0.12) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(75, 21, 77, 0.1) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -206,3 +222,31 @@ body {
 .stagger-4 { animation-delay: 0.3s; }
 .stagger-5 { animation-delay: 0.4s; }
 .stagger-6 { animation-delay: 0.5s; }
+
+/* Modal animations */
+@keyframes scale-in-modal {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in-modal 0.2s ease-out forwards;
+}
+
+/* Select styling */
+select {
+  cursor: pointer;
+}
+
+select option {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+

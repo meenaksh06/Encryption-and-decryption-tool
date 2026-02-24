@@ -23,15 +23,15 @@ export default function Toast({ message, type = "info", onClose }: ToastProps) {
 
   const config = {
     success: {
-      class: "border-[var(--color-success)]/30 bg-[var(--color-success)]/10 text-[var(--color-success)]",
+      class: "border-[#00BFA6]/30 bg-[#E6F8F5] text-[#009E8A]",
       Icon: CheckIcon,
     },
     error: {
-      class: "border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 text-[var(--color-danger)]",
+      class: "border-red-200 bg-red-50 text-red-700",
       Icon: XCircleIcon,
     },
     info: {
-      class: "border-[var(--color-primary)]/30 bg-[var(--color-primary)]/10 text-[var(--color-primary)]",
+      class: "border-[#4B154D]/20 bg-[#F9F7FA] text-[#4B154D]",
       Icon: InfoIcon,
     },
   };
@@ -40,12 +40,12 @@ export default function Toast({ message, type = "info", onClose }: ToastProps) {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-[100] glass-card px-5 py-3.5 flex items-center gap-3 shadow-2xl transition-all duration-300 ${typeClass} ${
+      className={`fixed bottom-6 right-6 z-[100] glass-card px-5 py-3.5 flex items-center gap-3 shadow-lg transition-all duration-300 ${typeClass} ${
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       }`}
     >
       <Icon className="w-5 h-5 flex-shrink-0" />
-      <span className="text-sm font-medium text-[var(--color-text)]">{message}</span>
+      <span className="text-sm font-medium">{message}</span>
     </div>
   );
 }

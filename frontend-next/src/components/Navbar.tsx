@@ -35,16 +35,16 @@ export default function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-[rgba(5,5,8,0.9)] backdrop-blur-xl border-b border-white/[0.06]"
+          ? "bg-white/90 backdrop-blur-xl border-b border-gray-200/60 shadow-sm"
           : "bg-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-accent)] flex items-center justify-center text-white shadow-[var(--shadow-glow)] group-hover:shadow-[0_0_28px_rgba(6,182,212,0.35)] transition-shadow duration-300">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-accent)] flex items-center justify-center text-white shadow-[var(--shadow-glow)] group-hover:shadow-[0_0_28px_rgba(75,21,77,0.35)] transition-shadow duration-300">
             <LockIcon className="w-4 h-4" />
           </div>
-          <span className="text-[15px] font-bold tracking-tight text-white/80 group-hover:text-white transition-colors font-[var(--font-display)]">
+          <span className="text-[15px] font-bold tracking-tight text-gray-700 group-hover:text-gray-900 transition-colors font-[var(--font-display)]">
             VaultLock
           </span>
         </Link>
@@ -56,8 +56,8 @@ export default function Navbar() {
               href={link.href}
               className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                 isActive(link.href)
-                  ? "text-white bg-white/[0.08]"
-                  : "text-white/40 hover:text-white/80 hover:bg-white/[0.04]"
+                  ? "text-gray-900 bg-gray-100"
+                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-100/60"
               }`}
             >
               {link.label}
@@ -68,10 +68,10 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           {username ? (
             <>
-              <span className="hidden md:block text-[12px] text-white/30 font-mono">{username}</span>
+              <span className="hidden md:block text-[12px] text-gray-500 font-mono">{username}</span>
               <button
                 onClick={logout}
-                className="text-[12px] px-4 py-2 rounded-lg border border-white/[0.08] text-white/40 hover:text-white/70 hover:border-white/[0.12] hover:bg-white/[0.04] transition-all"
+                className="text-[12px] px-4 py-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all"
               >
                 Sign out
               </button>
@@ -87,7 +87,7 @@ export default function Navbar() {
           )}
 
           <button
-            className="md:hidden p-2 rounded-lg hover:bg-white/[0.06] transition-colors text-white/50"
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Menu"
           >
@@ -97,7 +97,7 @@ export default function Navbar() {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden bg-[rgba(5,5,8,0.97)] backdrop-blur-xl border-b border-white/[0.06] px-6 py-4 space-y-1">
+        <div className="md:hidden bg-white/97 backdrop-blur-xl border-b border-gray-200 px-6 py-4 space-y-1">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -105,8 +105,8 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
               className={`block px-4 py-3 rounded-lg text-[13px] font-medium transition-colors ${
                 isActive(link.href)
-                  ? "bg-white/[0.08] text-white"
-                  : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
               }`}
             >
               {link.label}

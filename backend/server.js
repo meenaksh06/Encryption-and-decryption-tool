@@ -17,6 +17,7 @@ const authRouter = require("./routes/auth");
 const driveRouter = require("./routes/drive");
 const { router: chatRouter, getOrCreateConversation } = require("./routes/chat");
 const vaultRouter = require("./routes/vault");
+const auditRouter = require("./routes/audit");
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +36,9 @@ app.use("/chat", chatRouter);
 
 app.use("/vault", express.json());
 app.use("/vault", vaultRouter);
+
+app.use("/audit", express.json());
+app.use("/audit", auditRouter);
 
 app.use(
   express.raw({

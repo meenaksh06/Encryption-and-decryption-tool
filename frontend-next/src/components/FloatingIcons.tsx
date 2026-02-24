@@ -30,7 +30,7 @@ const icons = [
       </svg>
     ),
     label: "File Guard",
-    color: "from-[var(--color-warning)]/20 to-amber-500/20",
+    color: "from-[var(--color-warning)]/20 to-[#00BFA6]/20",
     border: "border-[var(--color-warning)]/20",
   },
   {
@@ -40,7 +40,7 @@ const icons = [
       </svg>
     ),
     label: "Secure Delete",
-    color: "from-[var(--color-danger)]/20 to-pink-500/20",
+    color: "from-[var(--color-danger)]/20 to-[#4B154D]/20",
     border: "border-[var(--color-danger)]/20",
   },
   {
@@ -50,7 +50,7 @@ const icons = [
       </svg>
     ),
     label: "Cloud Drive",
-    color: "from-[var(--color-primary)]/20 to-blue-500/20",
+    color: "from-[var(--color-primary)]/20 to-[#00BFA6]/20",
     border: "border-[var(--color-primary)]/20",
   },
   {
@@ -60,7 +60,7 @@ const icons = [
       </svg>
     ),
     label: "Rate Limit",
-    color: "from-[var(--color-warning)]/20 to-lime-500/20",
+    color: "from-[var(--color-warning)]/20 to-[#00BFA6]/20",
     border: "border-[var(--color-warning)]/20",
   },
   {
@@ -70,7 +70,7 @@ const icons = [
       </svg>
     ),
     label: "Integrity",
-    color: "from-[var(--color-accent)]/20 to-fuchsia-500/20",
+    color: "from-[var(--color-accent)]/20 to-[#5C1B60]/20",
     border: "border-[var(--color-accent)]/20",
   },
   {
@@ -95,9 +95,9 @@ export default function FloatingIcons() {
   return (
     <div className="relative w-[340px] h-[340px] md:w-[480px] md:h-[480px]">
       {/* Orbit rings */}
-      <div className="absolute inset-0 rounded-full border border-[var(--color-border)]/30 animate-[spin_40s_linear_infinite]" />
-      <div className="absolute inset-6 md:inset-10 rounded-full border border-[var(--color-border)]/20 animate-[spin_30s_linear_infinite_reverse]" />
-      <div className="absolute inset-12 md:inset-20 rounded-full border border-[var(--color-border)]/10" />
+      <div className="absolute inset-0 rounded-full border border-[var(--color-primary)]/15 animate-[spin_40s_linear_infinite]" />
+      <div className="absolute inset-6 md:inset-10 rounded-full border border-[var(--color-accent)]/15 animate-[spin_30s_linear_infinite_reverse]" />
+      <div className="absolute inset-12 md:inset-20 rounded-full border border-[var(--color-primary)]/10" />
 
       {/* Central icon */}
       <div className="absolute inset-0 flex items-center justify-center">
@@ -144,10 +144,10 @@ export default function FloatingIcons() {
                 animation: `float ${5 + i * 0.5}s ease-in-out ${i * 0.3}s infinite`,
               }}
             >
-              <div className="text-white/80">{item.icon}</div>
+              <div className="text-[var(--color-primary)]">{item.icon}</div>
 
               {/* Tooltip */}
-              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-white text-[var(--color-background)] text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-[var(--color-primary)] text-white text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                 {item.label}
               </div>
             </div>

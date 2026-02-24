@@ -52,7 +52,7 @@ export default function Loader({ onComplete, minDuration = 1200 }: LoaderProps) 
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <div className="h-[2px] bg-white/[0.08] rounded-full overflow-hidden">
+            <div className="h-[2px] bg-[var(--color-border)] rounded-full overflow-hidden">
               <motion.div
                 className="h-full rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)]"
                 style={{ width: `${progress}%` }}
@@ -61,7 +61,7 @@ export default function Loader({ onComplete, minDuration = 1200 }: LoaderProps) 
             </div>
           </motion.div>
           <motion.p
-            className="mt-4 text-[11px] font-medium tracking-[0.2em] uppercase text-white/30"
+            className="mt-4 text-[11px] font-medium tracking-[0.2em] uppercase text-[var(--color-text-muted)]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15, duration: 0.3 }}
