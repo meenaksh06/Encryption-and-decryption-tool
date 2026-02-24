@@ -78,6 +78,41 @@
   <script type="text/babel">
     const API = "http://localhost:8080";
 
+    function u8ToB64(bytes) {
+      let s = ""; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s);
+    }
+    function b64ToU8(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
+
+    async function deriveVaultKey(password, saltB64) {
+      const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+      return crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: b64ToU8(saltB64), iterations: 310000, hash: "SHA-256" },
+        base, { name: "AES-GCM", length: 256 }, false, ["encrypt"]
+      );
+    }
+
+    async function encryptForVault(vaultKey, payload) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, vaultKey, new TextEncoder().encode(JSON.stringify(payload)));
+      return { encrypted_data: u8ToB64(new Uint8Array(ct)), enc_iv: u8ToB64(iv) };
+    }
+
+    async function saveToVault(token, label, key, iv) {
+      const saltRes = await fetch(`${API}/vault/salt`, { headers: { Authorization: `Bearer ${token}` } });
+      const { salt } = await saltRes.json();
+      const pwd = window.prompt(`🔐 Vault password to save key for "${label}":`);
+      if (!pwd) return;
+      const vaultKey = await deriveVaultKey(pwd, salt);
+      const { encrypted_data, enc_iv } = await encryptForVault(vaultKey, { key, iv, note: `Encrypted ${new Date().toLocaleDateString()}` });
+      const res = await fetch(`${API}/vault/entries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ label, encrypted_data, enc_iv }),
+      });
+      if (res.ok) alert(`✓ Key for "${label}" saved to Vault!`);
+      else alert("Failed to save to Vault.");
+    }
+
     function fmt(bytes) {
       if (bytes < 1024) return bytes + " B";
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
@@ -100,6 +135,8 @@
           <div className="nav-links">
             <span className="nav-link active">Workspace</span>
             <a className="nav-link" href="drive.html">Drive</a>
+            <a className="nav-link" href="chat.html">Chat</a>
+            <a className="nav-link" href="vault.html">🔐 Vault</a>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="nav-user">👤 {username}</span>
@@ -245,6 +282,7 @@
                       <th>Private Key</th>
                       <th>IV</th>
                       <th>SHA-256</th>
+                      <th>Vault</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -281,12 +319,20 @@
                             </div>
                           )}
                         </td>
+                        <td>
+                          {r.status === "ok" && (
+                            <button className="copy-btn" style={{ background: "#4c1d95", color: "#c4b5fd", padding: "4px 8px" }}
+                              onClick={() => saveToVault(token, r.name, r.key, r.iv)}>
+                              🔒 Save
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="info-note">⚠ Save your keys — they are NOT stored on the server. Without the key and IV you cannot decrypt your files.</div>
+              <div className="info-note">⚠ Save your keys — they are NOT stored on the server. Use "🔒 Save" to store them securely in your Key Vault.</div>
             </div>
           )}
         </div>

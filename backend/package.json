@@ -20,6 +20,8 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "fs-extra": "^11.3.3",
-    "multer": "^2.0.2"
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.0.2",
+    "ws": "^8.19.0"
   }
 }

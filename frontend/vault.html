@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Key Vault — VaultLock</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: #1e2130; border-bottom: 1px solid #2d3348; }
+    .nav-brand { font-size: 16px; font-weight: 700; }
+    .nav-links { display: flex; align-items: center; gap: 16px; }
+    .nav-link { font-size: 13px; color: #94a3b8; text-decoration: none; padding: 6px 10px; border-radius: 6px; border: none; background: none; cursor: pointer; }
+    .nav-link:hover { background: #2d3348; color: #e2e8f0; }
+    .nav-link.active { background: #2d3348; color: #fff; }
+    .nav-user { font-size: 12px; color: #64748b; }
+    .logout-btn { font-size: 12px; color: #ef4444; cursor: pointer; border: none; background: none; padding: 6px 10px; border-radius: 6px; }
+    .logout-btn:hover { background: #3f1212; }
+    .main { padding: 36px 28px; max-width: 820px; margin: 0 auto; }
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+    .page-sub { font-size: 13px; color: #64748b; margin-bottom: 32px; }
+    .lock-panel { background: #1e2130; border: 1px solid #2d3348; border-radius: 16px; padding: 40px; max-width: 400px; margin: 80px auto; text-align: center; }
+    .lock-icon { font-size: 52px; margin-bottom: 20px; }
+    .lock-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .lock-sub { font-size: 13px; color: #64748b; margin-bottom: 28px; line-height: 1.5; }
+    .pass-input { width: 100%; padding: 12px 16px; background: #131620; border: 1px solid #2d3348; border-radius: 10px; color: #e2e8f0; font-size: 14px; outline: none; text-align: center; letter-spacing: 2px; margin-bottom: 14px; }
+    .pass-input:focus { border-color: #7c3aed; }
+    .unlock-btn { width: 100%; padding: 12px; background: #7c3aed; border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .unlock-btn:hover { background: #6d28d9; }
+    .unlock-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .vault-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .vault-lock-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #2d3348; border: none; border-radius: 8px; color: #94a3b8; font-size: 13px; cursor: pointer; }
+    .vault-lock-btn:hover { background: #374151; color: #e2e8f0; }
+    .add-entry-card { background: #1e2130; border: 1px dashed #2d3348; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .add-entry-title { font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .field-label { font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    .field-input { width: 100%; padding: 8px 12px; background: #131620; border: 1px solid #2d3348; border-radius: 8px; color: #e2e8f0; font-size: 12px; font-family: monospace; outline: none; }
+    .field-input:focus { border-color: #7c3aed; }
+    .field-input.full { font-family: Inter, sans-serif; }
+    .save-entry-btn { padding: 8px 16px; background: #7c3aed; border: none; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .save-entry-btn:hover { background: #6d28d9; }
+    .save-entry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .entries-list { display: flex; flex-direction: column; gap: 10px; }
+    .entry-card { background: #1e2130; border: 1px solid #2d3348; border-radius: 12px; padding: 16px 20px; }
+    .entry-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .entry-label { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .entry-date { font-size: 11px; color: #475569; }
+    .entry-actions { display: flex; gap: 8px; }
+    .reveal-btn { padding: 5px 12px; background: #7c3aed; border: none; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 500; cursor: pointer; }
+    .reveal-btn:hover { background: #6d28d9; }
+    .reveal-btn.active { background: #374151; color: #94a3b8; }
+    .del-btn { padding: 5px 10px; background: #3f1212; border: none; border-radius: 6px; color: #fca5a5; font-size: 12px; cursor: pointer; }
+    .del-btn:hover { background: #7f1d1d; }
+    .revealed-data { margin-top: 12px; background: #131620; border: 1px solid #2d3348; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .kv-row { display: flex; align-items: flex-start; gap: 10px; }
+    .kv-label { font-size: 11px; font-weight: 600; color: #64748b; width: 44px; flex-shrink: 0; padding-top: 2px; }
+    .kv-val { font-family: monospace; font-size: 11px; color: #7dd3fc; word-break: break-all; flex: 1; }
+    .copy-btn { border: none; background: #2d3348; color: #94a3b8; padding: 2px 7px; border-radius: 4px; font-size: 10px; cursor: pointer; flex-shrink: 0; }
+    .copy-btn:hover { background: #374151; color: #e2e8f0; }
+    .timer-bar { height: 3px; background: #7c3aed; border-radius: 2px; margin-top: 10px; transition: width 1s linear; }
+    .empty-vault { text-align: center; padding: 50px 0; color: #475569; }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .error-text { color: #f87171; font-size: 12px; margin-top: 8px; }
+    .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; background: #1e2130; border: 1px solid #2d3348; border-radius: 10px; font-size: 13px; color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 200; }
+    .security-note { background: #1a1438; border: 1px solid #4c1d95; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #c4b5fd; margin-bottom: 24px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const API = "http://localhost:8080";
+
+    function fmtDate(unix) {
+      return new Date(unix * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function u8ToB64(bytes) {
+      let s = "";
+      for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+      return btoa(s);
+    }
+
+    function b64ToU8(b64) {
+      return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    }
+
+    async function deriveKey(password, saltB64) {
+      const enc = new TextEncoder().encode(password);
+      const baseKey = await crypto.subtle.importKey("raw", enc, "PBKDF2", false, ["deriveKey"]);
+      const salt = b64ToU8(saltB64);
+      return crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt, iterations: 310000, hash: "SHA-256" },
+        baseKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    async function encryptEntry(vaultKey, payload) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const enc = new TextEncoder().encode(JSON.stringify(payload));
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, vaultKey, enc);
+      return { encrypted_data: u8ToB64(new Uint8Array(ct)), enc_iv: u8ToB64(iv) };
+    }
+
+    async function decryptEntry(vaultKey, encB64, ivB64) {
+      const ct = b64ToU8(encB64);
+      const iv = b64ToU8(ivB64);
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, vaultKey, ct);
+      return JSON.parse(new TextDecoder().decode(plain));
+    }
+
+    function Nav({ username }) {
+      const logout = () => {
+        localStorage.removeItem("vl_token");
+        localStorage.removeItem("vl_username");
+        window.location.href = "index.html";
+      };
+      return (
+        <nav>
+          <div className="nav-brand">🔐 VaultLock</div>
+          <div className="nav-links">
+            <a className="nav-link" href="workspace.html">Workspace</a>
+            <a className="nav-link" href="drive.html">Drive</a>
+            <a className="nav-link" href="chat.html">Chat</a>
+            <span className="nav-link active">Vault</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="nav-user">👤 {username}</span>
+            <button className="logout-btn" onClick={logout}>Sign out</button>
+          </div>
+        </nav>
+      );
+    }
+
+    function RevealedEntry({ entry, vaultKey }) {
+      const [data, setData] = React.useState(null);
+      const [seconds, setSeconds] = React.useState(30);
+      const [error, setError] = React.useState("");
+
+      React.useEffect(() => {
+        decryptEntry(vaultKey, entry.encrypted_data, entry.enc_iv)
+          .then(setData)
+          .catch(() => setError("Decryption failed — wrong vault password?"));
+      }, []);
+
+      React.useEffect(() => {
+        if (!data) return;
+        const t = setInterval(() => setSeconds(s => s - 1), 1000);
+        return () => clearInterval(t);
+      }, [data]);
+
+      const copy = (text) => navigator.clipboard.writeText(text).catch(() => {});
+
+      if (error) return <div className="error-text">{error}</div>;
+      if (!data) return <div style={{ color: "#64748b", fontSize: 12, marginTop: 8 }}>Decrypting…</div>;
+      if (seconds <= 0) return <div style={{ color: "#475569", fontSize: 12, marginTop: 8 }}>⏰ Hidden (refresh to reveal again)</div>;
+
+      return (
+        <div className="revealed-data">
+          {data.key && (
+            <div className="kv-row">
+              <div className="kv-label">KEY</div>
+              <div className="kv-val">{data.key}</div>
+              <button className="copy-btn" onClick={() => copy(data.key)}>copy</button>
+            </div>
+          )}
+          {data.iv && (
+            <div className="kv-row">
+              <div className="kv-label">IV</div>
+              <div className="kv-val">{data.iv}</div>
+              <button className="copy-btn" onClick={() => copy(data.iv)}>copy</button>
+            </div>
+          )}
+          {data.note && (
+            <div className="kv-row">
+              <div className="kv-label">NOTE</div>
+              <div className="kv-val" style={{ fontFamily: "Inter, sans-serif", color: "#94a3b8" }}>{data.note}</div>
+            </div>
+          )}
+          <div className="timer-bar" style={{ width: `${(seconds / 30) * 100}%` }} />
+          <div style={{ fontSize: 10, color: "#64748b", textAlign: "right" }}>Hides in {seconds}s</div>
+        </div>
+      );
+    }
+
+    function EntryCard({ entry, vaultKey, onDelete }) {
+      const [revealed, setRevealed] = React.useState(false);
+
+      return (
+        <div className="entry-card">
+          <div className="entry-top">
+            <div className="entry-label">
+              <span>🔑</span>
+              {entry.label}
+            </div>
+            <div className="entry-actions">
+              <button
+                className={`reveal-btn ${revealed ? "active" : ""}`}
+                onClick={() => setRevealed(r => !r)}
+              >{revealed ? "Hide" : "👁 Reveal"}</button>
+              <button className="del-btn" onClick={() => onDelete(entry.id)}>🗑</button>
+            </div>
+          </div>
+          <div className="entry-date">{fmtDate(entry.created_at)}</div>
+          {revealed && <RevealedEntry key={entry.id} entry={entry} vaultKey={vaultKey} />}
+        </div>
+      );
+    }
+
+    function AddEntryForm({ vaultKey, token, onAdded }) {
+      const [label, setLabel] = React.useState("");
+      const [key, setKey] = React.useState("");
+      const [iv, setIv] = React.useState("");
+      const [note, setNote] = React.useState("");
+      const [saving, setSaving] = React.useState(false);
+      const [error, setError] = React.useState("");
+
+      const save = async () => {
+        if (!label.trim() || !key.trim() || !iv.trim()) return;
+        setSaving(true); setError("");
+        try {
+          const { encrypted_data, enc_iv } = await encryptEntry(vaultKey, { key: key.trim(), iv: iv.trim(), note: note.trim() });
+          const res = await fetch(`${API}/vault/entries`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ label: label.trim(), encrypted_data, enc_iv }),
+          });
+          if (!res.ok) { setError("Save failed"); setSaving(false); return; }
+          const { id } = await res.json();
+          onAdded({ id, label: label.trim(), encrypted_data, enc_iv, created_at: Math.floor(Date.now() / 1000) });
+          setLabel(""); setKey(""); setIv(""); setNote("");
+        } catch (e) { setError(e.message); }
+        setSaving(false);
+      };
+
+      return (
+        <div className="add-entry-card">
+          <div className="add-entry-title">+ Add Key Entry</div>
+          <div className="field-row">
+            <div>
+              <div className="field-label">Label (e.g. filename)</div>
+              <input className="field-input full" placeholder="report.pdf" value={label} onChange={e => setLabel(e.target.value)} />
+            </div>
+            <div>
+              <div className="field-label">Note (optional)</div>
+              <input className="field-input full" placeholder="encrypted 2024-02-24" value={note} onChange={e => setNote(e.target.value)} />
+            </div>
+          </div>
+          <div className="field-row">
+            <div>
+              <div className="field-label">AES Key (hex)</div>
+              <input className="field-input" placeholder="64-char hex key" value={key} onChange={e => setKey(e.target.value)} />
+            </div>
+            <div>
+              <div className="field-label">IV (hex)</div>
+              <input className="field-input" placeholder="32-char hex IV" value={iv} onChange={e => setIv(e.target.value)} />
+            </div>
+          </div>
+          {error && <div className="error-text">{error}</div>}
+          <div style={{ marginTop: 12 }}>
+            <button className="save-entry-btn" disabled={!label.trim() || !key.trim() || !iv.trim() || saving} onClick={save}>
+              {saving ? "Saving…" : "🔒 Save to Vault"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const token = localStorage.getItem("vl_token");
+      const username = localStorage.getItem("vl_username") || "";
+
+      const [password, setPassword] = React.useState("");
+      const [unlocking, setUnlocking] = React.useState(false);
+      const [unlockError, setUnlockError] = React.useState("");
+      const [vaultKey, setVaultKey] = React.useState(null);
+      const [salt, setSalt] = React.useState(null);
+      const [entries, setEntries] = React.useState([]);
+      const [toast, setToast] = React.useState("");
+
+      React.useEffect(() => {
+        if (!token) { window.location.href = "index.html"; }
+      }, []);
+
+      const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+
+      const unlock = async () => {
+        if (!password) return;
+        setUnlocking(true); setUnlockError("");
+        try {
+          const saltRes = await fetch(`${API}/vault/salt`, { headers: { Authorization: `Bearer ${token}` } });
+          if (saltRes.status === 401) { window.location.href = "index.html"; return; }
+          const { salt: s } = await saltRes.json();
+          setSalt(s);
+
+          const key = await deriveKey(password, s);
+
+          const entriesRes = await fetch(`${API}/vault/entries`, { headers: { Authorization: `Bearer ${token}` } });
+          const data = await entriesRes.json();
+
+          if (data.length > 0) {
+            try {
+              await decryptEntry(key, data[0].encrypted_data, data[0].enc_iv);
+            } catch {
+              setUnlockError("Wrong vault password. Try again.");
+              setUnlocking(false);
+              return;
+            }
+          }
+
+          setVaultKey(key);
+          setEntries(data);
+        } catch {
+          setUnlockError("Failed to unlock vault. Check your connection.");
+        }
+        setUnlocking(false);
+      };
+
+      const deleteEntry = async (id) => {
+        if (!window.confirm("Delete this vault entry? This cannot be undone.")) return;
+        const res = await fetch(`${API}/vault/entries/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          setEntries(prev => prev.filter(e => e.id !== id));
+          showToast("✓ Entry deleted");
+        }
+      };
+
+      if (!token) return null;
+
+      return (
+        <div>
+          <Nav username={username} />
+          {!vaultKey ? (
+            <div className="lock-panel">
+              <div className="lock-icon">🔐</div>
+              <div className="lock-title">Key Vault</div>
+              <div className="lock-sub">
+                Your keys are encrypted with your vault password.<br />
+                The password never leaves your browser.
+              </div>
+              <input
+                className="pass-input"
+                type="password"
+                placeholder="Vault password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && unlock()}
+              />
+              {unlockError && <div className="error-text" style={{ marginBottom: 12 }}>{unlockError}</div>}
+              <button className="unlock-btn" disabled={!password || unlocking} onClick={unlock}>
+                {unlocking ? "Unlocking…" : "Unlock Vault"}
+              </button>
+              <div style={{ marginTop: 16, fontSize: 11, color: "#475569" }}>
+                First time? Set any password — it will be used to encrypt all future entries.
+              </div>
+            </div>
+          ) : (
+            <div className="main">
+              <div className="vault-header">
+                <div>
+                  <div className="page-title">🔐 Key Vault</div>
+                  <div className="page-sub">{entries.length} encrypted key{entries.length !== 1 ? "s" : ""} stored</div>
+                </div>
+                <button className="vault-lock-btn" onClick={() => { setVaultKey(null); setEntries([]); setPassword(""); }}>
+                  🔒 Lock Vault
+                </button>
+              </div>
+
+              <div className="security-note">
+                🛡 Zero-knowledge: your vault password and plaintext keys never leave your browser. The server stores only AES-256-GCM encrypted blobs derived via PBKDF2 (310,000 iterations).
+              </div>
+
+              <AddEntryForm vaultKey={vaultKey} token={token} onAdded={e => setEntries(prev => [e, ...prev])} />
+
+              <div className="entries-list">
+                {entries.length === 0 && (
+                  <div className="empty-vault">
+                    <div className="empty-icon">🗝️</div>
+                    <div>No keys saved yet.<br />Encrypt a file in Workspace and save its key here.</div>
+                  </div>
+                )}
+                {entries.map(e => (
+                  <EntryCard key={e.id} entry={e} vaultKey={vaultKey} onDelete={deleteEntry} />
+                ))}
+              </div>
+            </div>
+          )}
+          {toast && <div className="toast">{toast}</div>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
