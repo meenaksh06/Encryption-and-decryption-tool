@@ -1,7 +1,4 @@
-// server.js — main backend for the encryption/decryption tool
-// handles file encryption (AES-256-CBC), decryption, integrity checks (SHA-256),
-// secure deletion of encrypted files from disk, rate limiting, and file type validation
-
+require("dotenv").config();
 const express = require("express");
 const crypto = require("crypto");
 const fs = require("fs");
@@ -11,303 +8,200 @@ const cors = require("cors");
 const { rateLimit } = require("express-rate-limit");
 const { audit } = require("./audit");
 const { isExtensionAllowed, isMagicBytesAllowed } = require("./fileGuard");
+const authMiddleware = require("./middleware/auth");
+const db = require("./db");
+const authRouter = require("./routes/auth");
+const driveRouter = require("./routes/drive");
 
 const app = express();
+const PORT = process.env.PORT || 8080;
 
 app.use(cors());
 
-// we need raw binary bodies for file uploads, not JSON
+app.use("/auth", express.json());
+app.use("/auth", authRouter);
+
+app.use("/drive", express.json());
+app.use("/drive", driveRouter);
+
 app.use(
   express.raw({
     type: "*/*",
-    limit: "10mb",
-  }),
+    limit: "100mb",
+  })
 );
 
-// make sure the encrypted/ folder exists on startup so we don't crash later
-const encryptedDir = path.join(__dirname, "encrypted");
-fs.mkdirSync(encryptedDir, { recursive: true });
-fs.chmodSync(encryptedDir, 0o755);
+const encryptedBaseDir = path.join(__dirname, "encrypted");
+fs.mkdirSync(encryptedBaseDir, { recursive: true });
 
-// ── Rate Limiters ────────────────────────────────────────────────────────────
-// Prevents brute-force attacks and resource exhaustion.
-// Each limiter is scoped by IP (req.ip) and emits an audit entry on a hit.
+function getUserEncryptedDir(userId) {
+  const dir = path.join(encryptedBaseDir, String(userId));
+  fs.mkdirSync(dir, { recursive: true });
+  fs.chmodSync(dir, 0o700);
+  return dir;
+}
 
-// Global safety net — catches anything not covered by route-specific limiters
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,   // 15 minutes
-  max: 100,
+  windowMs: 15 * 60 * 1000,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
     audit("RATE_LIMIT", req, "REJECTED", {
       route: req.path,
-      reason: "global rate limit exceeded (100 req/15 min)",
+      reason: "global rate limit exceeded",
     });
-    res.status(429).json({
-      error: "Too many requests. Please wait a few minutes before trying again.",
-    });
+    res.status(429).json({ error: "Too many requests. Please wait a few minutes." });
   },
 });
 
-// Encrypt limiter — AES is CPU-heavy; prevent denial-of-service via bulk uploads
 const encryptLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    audit("RATE_LIMIT", req, "REJECTED", {
-      route: "/encrypt",
-      reason: "encrypt rate limit exceeded (20 req/15 min)",
-    });
-    res.status(429).json({
-      error: "Too many encryption requests. Please wait before encrypting again.",
-    });
+    audit("RATE_LIMIT", req, "REJECTED", { route: "/encrypt", reason: "encrypt rate limit exceeded" });
+    res.status(429).json({ error: "Too many encryption requests. Please wait." });
   },
 });
 
-// Decrypt limiter — primary brute-force target; strictest limit
 const decryptLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    audit("RATE_LIMIT", req, "REJECTED", {
-      route: "/decrypt",
-      reason: "decrypt rate limit exceeded (10 req/15 min)",
-    });
-    res.status(429).json({
-      error: "Too many decryption attempts. Please wait before trying again.",
-    });
+    audit("RATE_LIMIT", req, "REJECTED", { route: "/decrypt", reason: "decrypt rate limit exceeded" });
+    res.status(429).json({ error: "Too many decryption attempts. Please wait." });
   },
 });
 
 app.use(globalLimiter);
 
-// ────────────────────────────────────────────────
-// POST /encrypt — takes a raw file, encrypts it, and saves the .enc to disk
-// also computes a SHA-256 hash of the original plaintext so the client
-// can verify data integrity later after decryption
-// ────────────────────────────────────────────────
-app.post("/encrypt", encryptLimiter, (req, res) => {
+app.post("/encrypt", authMiddleware, encryptLimiter, (req, res) => {
   const filename = req.headers["x-filename"];
+  const saveToDrive = req.headers["x-save-to-drive"] === "true";
 
   if (!filename || !req.body || req.body.length === 0) {
-    return res.status(400).json({
-      error: "File data or filename missing",
-    });
+    return res.status(400).json({ error: "File data or filename missing" });
   }
 
-  // ── File Type Whitelisting ────────────────────────────────────────────────
-  // 1. Extension check — rejects .exe, .sh, .bat, etc. immediately
   if (!isExtensionAllowed(filename)) {
-    audit("ENCRYPT", req, "REJECTED", {
-      filename,
-      reason: "blocked file extension",
-    });
+    audit("ENCRYPT", req, "REJECTED", { filename, reason: "blocked file extension" });
     return res.status(400).json({
       error: `File type not allowed. The extension "${path.extname(filename).toLowerCase()}" is not on the whitelist.`,
     });
   }
 
-  // 2. Magic bytes check — catches renamed executables and unrecognised formats
   const magicResult = isMagicBytesAllowed(req.body);
   if (!magicResult.allowed) {
-    audit("ENCRYPT", req, "REJECTED", {
-      filename,
-      reason: `magic bytes rejected: ${magicResult.reason}`,
-    });
-    return res.status(400).json({
-      error: `File content rejected: ${magicResult.reason}. Only safe file types can be encrypted.`,
-    });
+    audit("ENCRYPT", req, "REJECTED", { filename, reason: `magic bytes rejected: ${magicResult.reason}` });
+    return res.status(400).json({ error: `File content rejected: ${magicResult.reason}` });
   }
 
-  // compute SHA-256 of the original file BEFORE encryption
-  // this gives us a fingerprint we can compare after decryption
-  // to make sure nothing got corrupted or tampered with
-  const originalHash = crypto
-    .createHash("sha256")
-    .update(req.body)
-    .digest("hex");
-
-  // generate a fresh random key + IV for this specific file
+  const originalHash = crypto.createHash("sha256").update(req.body).digest("hex");
   const privateKey = crypto.randomBytes(32);
   const iv = crypto.randomBytes(16);
-
   const cipher = crypto.createCipheriv("aes-256-cbc", privateKey, iv);
+  const encryptedData = Buffer.concat([cipher.update(req.body), cipher.final()]);
 
-  const encryptedData = Buffer.concat([
-    cipher.update(req.body),
-    cipher.final(),
-  ]);
-
-  // unique suffix prevents filename collisions when encrypting the same file twice
   const uniqueSuffix = Date.now() + "-" + crypto.randomBytes(4).toString("hex");
   const encryptedFileName = `${filename}.${uniqueSuffix}.enc`;
-  const encryptedPath = path.join(encryptedDir, encryptedFileName);
 
-  fs.writeFileSync(encryptedPath, encryptedData);
+  if (saveToDrive) {
+    const userDir = getUserEncryptedDir(req.user.id);
+    const encryptedPath = path.join(userDir, encryptedFileName);
+    fs.writeFileSync(encryptedPath, encryptedData);
+    fs.chmodSync(encryptedPath, 0o600);
 
-  // only the owner should be able to read/write the encrypted file
-  fs.chmodSync(encryptedPath, 0o600);
+    const keySha256 = crypto.createHash("sha256").update(privateKey).digest("hex");
+    db.prepare(
+      `INSERT INTO files (user_id, original_name, stored_name, iv, key_sha256, size_bytes)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(req.user.id, filename, encryptedFileName, iv.toString("hex"), keySha256, encryptedData.length);
+  }
 
   audit("ENCRYPT", req, "SUCCESS", {
     filename,
     encryptedFileName,
     sizeBytes: req.body.length,
     sha256: originalHash,
-    note: "plaintext never written to disk — in-memory only",
+    savedToDrive: saveToDrive,
   });
 
-  // expose all custom headers so the browser can read them across origins
   res.setHeader(
     "Access-Control-Expose-Headers",
-    "X-Private-Key, X-IV, X-SHA256, X-Encrypted-Filename, X-Secure-Note",
+    "X-Private-Key, X-IV, X-SHA256, X-Encrypted-Filename, X-Secure-Note"
   );
   res.setHeader("X-Private-Key", privateKey.toString("hex"));
   res.setHeader("X-IV", iv.toString("hex"));
   res.setHeader("X-SHA256", originalHash);
   res.setHeader("X-Encrypted-Filename", encryptedFileName);
-  res.setHeader(
-    "X-Secure-Note",
-    "No plaintext was written to disk — data processed in-memory only.",
-  );
+  res.setHeader("X-Secure-Note", "No plaintext was written to disk.");
   res.setHeader("Content-Disposition", `attachment; filename="${encryptedFileName}"`);
   res.setHeader("Content-Type", "application/octet-stream");
-
   res.status(200).send(encryptedData);
 });
 
-// ────────────────────────────────────────────────
-// POST /decrypt — takes encrypted file bytes + key + IV, returns the plaintext
-// also computes SHA-256 of the decrypted output and sends it in a response
-// header so the client can compare it against the original hash
-// ────────────────────────────────────────────────
-app.post("/decrypt", decryptLimiter, (req, res) => {
+app.post("/decrypt", authMiddleware, decryptLimiter, (req, res) => {
   const keyHex = req.headers["x-private-key"];
   const ivHex = req.headers["x-iv"];
   const originalFilename = req.headers["x-filename"] || "decrypted_file";
 
   if (!keyHex || !ivHex || !req.body || req.body.length === 0) {
-    audit("DECRYPT", req, "REJECTED", {
-      filename: originalFilename,
-      reason: "missing key, IV, or file body",
-    });
-    return res.status(400).json({
-      error: "Encrypted file data, private key, or IV missing",
-    });
+    audit("DECRYPT", req, "REJECTED", { filename: originalFilename, reason: "missing key, IV, or body" });
+    return res.status(400).json({ error: "Encrypted file data, private key, or IV missing" });
   }
 
   try {
-    // ── Key Strength Validation ──────────────────────────────────────────────
-    // Check hex string lengths BEFORE converting to buffers.
-    // A 32-byte AES-256 key = 64 hex chars; a 16-byte IV = 32 hex chars.
-    // Field-specific errors here are far clearer than a generic cipher failure.
     if (keyHex.length !== 64) {
-      audit("DECRYPT", req, "REJECTED", {
-        filename: originalFilename,
-        reason: `invalid key length: got ${keyHex.length} hex chars, expected 64`,
-      });
       return res.status(400).json({
-        error: `Invalid key length: got ${keyHex.length} hex characters, expected 64 (= 32 bytes). Use the full key from encryption.`,
+        error: `Invalid key length: got ${keyHex.length} hex chars, expected 64.`,
       });
     }
     if (ivHex.length !== 32) {
-      audit("DECRYPT", req, "REJECTED", {
-        filename: originalFilename,
-        reason: `invalid IV length: got ${ivHex.length} hex chars, expected 32`,
-      });
       return res.status(400).json({
-        error: `Invalid IV length: got ${ivHex.length} hex characters, expected 32 (= 16 bytes). Use the full IV from encryption.`,
+        error: `Invalid IV length: got ${ivHex.length} hex chars, expected 32.`,
       });
     }
 
     const key = Buffer.from(keyHex, "hex");
     const iv = Buffer.from(ivHex, "hex");
 
-    // byte-level sanity check — non-hex characters cause Node to silently
-    // produce a shorter buffer (e.g. "zz" decodes to 0 bytes), so we catch that here
-    if (key.length !== 32) {
-      audit("DECRYPT", req, "REJECTED", {
-        filename: originalFilename,
-        reason: "key contains non-hex characters (buffer underflow)",
-      });
-      return res.status(400).json({
-        error: "Key contains invalid hex characters. Expected a 64-character hexadecimal string (0-9, a-f).",
-      });
-    }
-    if (iv.length !== 16) {
-      audit("DECRYPT", req, "REJECTED", {
-        filename: originalFilename,
-        reason: "IV contains non-hex characters (buffer underflow)",
-      });
-      return res.status(400).json({
-        error: "IV contains invalid hex characters. Expected a 32-character hexadecimal string (0-9, a-f).",
-      });
+    if (key.length !== 32 || iv.length !== 16) {
+      return res.status(400).json({ error: "Key or IV contains invalid hex characters." });
     }
 
     const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+    const decryptedData = Buffer.concat([decipher.update(req.body), decipher.final()]);
+    const decryptedHash = crypto.createHash("sha256").update(decryptedData).digest("hex");
 
-    const decryptedData = Buffer.concat([
-      decipher.update(req.body),
-      decipher.final(),
-    ]);
-
-    // compute SHA-256 of the decrypted output — the client will compare this
-    // against the original hash to detect any tampering or corruption
-    const decryptedHash = crypto
-      .createHash("sha256")
-      .update(decryptedData)
-      .digest("hex");
-
-    // need to expose this custom header to the browser (CORS won't show it otherwise)
     res.setHeader("Access-Control-Expose-Headers", "X-Decrypted-SHA256");
     res.setHeader("X-Decrypted-SHA256", decryptedHash);
     res.setHeader("Content-Disposition", `attachment; filename="${originalFilename}"`);
     res.setHeader("Content-Type", "application/octet-stream");
 
-    audit("DECRYPT", req, "SUCCESS", {
-      filename: originalFilename,
-      sizeBytes: decryptedData.length,
-      sha256: decryptedHash,
-    });
-
+    audit("DECRYPT", req, "SUCCESS", { filename: originalFilename, sizeBytes: decryptedData.length, sha256: decryptedHash });
     res.status(200).send(decryptedData);
   } catch (err) {
-    audit("DECRYPT", req, "FAILURE", {
-      filename: originalFilename,
-      reason: err.message || "cipher error — wrong key or IV",
-    });
-    res.status(400).json({
-      error: "Decryption failed. Check that the key and IV are correct.",
-    });
+    audit("DECRYPT", req, "FAILURE", { filename: originalFilename, reason: err.message });
+    res.status(400).json({ error: "Decryption failed. Check that the key and IV are correct." });
   }
 });
 
-// ────────────────────────────────────────────────
-// POST /secure-delete — securely wipes an .enc file from disk
-// overwrites the content multiple times before unlinking so the OS
-// can't recover the data blocks later
-// ────────────────────────────────────────────────
-app.post("/secure-delete", (req, res) => {
+app.post("/secure-delete", authMiddleware, (req, res) => {
   const filename = req.headers["x-filename"];
 
-  if (!filename) {
-    return res.status(400).json({ error: "Filename header (x-filename) is required" });
-  }
-
-  // only encrypted files should be deletable through this endpoint
-  if (!filename.endsWith(".enc")) {
+  if (!filename || !filename.endsWith(".enc")) {
     return res.status(400).json({ error: "Only .enc files can be securely deleted" });
   }
 
-  // path traversal guard — someone could try "../../etc/passwd" etc.
-  // we strip the path and only use the basename, then verify it resolves inside our dir
-  const resolved = path.resolve(encryptedDir, path.basename(filename));
-  if (!resolved.startsWith(encryptedDir)) {
-    return res.status(403).json({ error: "Path traversal detected — access denied" });
+  const userDir = getUserEncryptedDir(req.user.id);
+  const resolved = path.resolve(userDir, path.basename(filename));
+
+  if (!resolved.startsWith(userDir)) {
+    return res.status(403).json({ error: "Path traversal detected" });
   }
 
   if (!fs.existsSync(resolved)) {
@@ -316,25 +210,15 @@ app.post("/secure-delete", (req, res) => {
 
   try {
     const result = secureDelete(resolved);
-    audit("SECURE_DELETE", req, "SUCCESS", {
-      filename,
-      passes: result.passes,
-      bytesOverwritten: result.bytesOverwritten,
-    });
-    res.status(200).json({
-      message: "File securely deleted",
-      passes: result.passes,
-      bytesOverwritten: result.bytesOverwritten,
-    });
+    db.prepare("DELETE FROM files WHERE stored_name = ? AND user_id = ?").run(filename, req.user.id);
+    audit("SECURE_DELETE", req, "SUCCESS", { filename, passes: result.passes, bytesOverwritten: result.bytesOverwritten });
+    res.status(200).json({ message: "File securely deleted", passes: result.passes, bytesOverwritten: result.bytesOverwritten });
   } catch (err) {
-    audit("SECURE_DELETE", req, "FAILURE", {
-      filename,
-      reason: err.message,
-    });
+    audit("SECURE_DELETE", req, "FAILURE", { filename, reason: err.message });
     res.status(500).json({ error: "Secure delete failed: " + err.message });
   }
 });
 
-app.listen(8080, () => {
-  console.log("Encryption server running on port 8080");
+app.listen(PORT, () => {
+  console.log(`Encryption server running on port ${PORT}`);
 });
