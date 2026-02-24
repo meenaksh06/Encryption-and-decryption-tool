@@ -1,4 +1,6 @@
 node_modules/
+.next/
+frontend-next/.next/
 
 # Secrets — NEVER commit
 backend/.env
