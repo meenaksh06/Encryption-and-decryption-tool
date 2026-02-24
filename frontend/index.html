@@ -1,517 +1,133 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Secure File Encryption & Decryption</title>
-
+  <title>VaultLock — Secure File Encryption</title>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      font-family:
-        Inter,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
-    }
-
-    .container {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
-      gap: 32px;
-      flex-wrap: wrap;
     }
-
+    .page { width: 100%; max-width: 420px; padding: 24px; }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo-icon { font-size: 40px; margin-bottom: 8px; }
+    .logo-text { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-sub { font-size: 13px; color: #64748b; margin-top: 4px; }
     .card {
-      background: #ffffff;
-      width: 100%;
-      max-width: 420px;
+      background: #1e2130;
+      border: 1px solid #2d3348;
       border-radius: 14px;
-      padding: 32px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      padding: 28px;
     }
-
-    .title {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 6px;
+    .tabs { display: flex; gap: 4px; background: #131620; border-radius: 8px; padding: 4px; margin-bottom: 24px; }
+    .tab {
+      flex: 1; padding: 8px; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      background: transparent; color: #64748b; transition: all 0.2s;
     }
-
-    .subtitle {
-      font-size: 14px;
-      color: #64748b;
-      margin-bottom: 24px;
+    .tab.active { background: #2563eb; color: #fff; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
+    .field input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #2d3348; border-radius: 8px;
+      background: #131620; color: #e2e8f0;
+      font-size: 14px; outline: none; transition: border-color 0.2s;
     }
-
-    .file-input {
-      width: 100%;
-      padding: 12px;
-      border: 1px dashed #cbd5e1;
-      border-radius: 10px;
-      background: #f8fafc;
+    .field input:focus { border-color: #2563eb; }
+    .btn {
+      width: 100%; padding: 11px; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      background: #2563eb; color: #fff; transition: background 0.2s;
     }
-
-    .text-input {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      background: #f8fafc;
-      font-size: 12px;
-      font-family: monospace;
-      margin-top: 12px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .text-input:focus {
-      border-color: #0f172a;
-    }
-
-    .text-input::placeholder {
-      color: #94a3b8;
-    }
-
-    .input-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #475569;
-      margin-top: 16px;
-      margin-bottom: 4px;
-    }
-
-    .button {
-      margin-top: 20px;
-      width: 100%;
-      padding: 12px;
-      background: #0f172a;
-      color: #ffffff;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .button-decrypt {
-      background: #1e40af;
-    }
-
-    .result {
-      margin-top: 24px;
-      padding: 16px;
-      background: #f8fafc;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
-    }
-
-    .result-success {
-      border-color: #86efac;
-      background: #f0fdf4;
-    }
-
-    .result-error {
-      border-color: #fca5a5;
-      background: #fef2f2;
-    }
-
-    .label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #475569;
-      margin-top: 12px;
-    }
-
-    .value {
-      font-size: 12px;
-      word-break: break-all;
-      margin-top: 4px;
-    }
-
-    .clear-btn {
-      margin-top: 12px;
-      background: none;
-      border: none;
-      color: #64748b;
-      font-size: 12px;
-      cursor: pointer;
-    }
-
-    .footer-note {
-      margin-top: 16px;
-      font-size: 11px;
-      color: #94a3b8;
-      text-align: center;
-    }
-
-    .secure-badge {
-      margin-top: 16px;
-      padding: 10px 14px;
-      background: #f0fdf4;
-      border: 1px solid #86efac;
-      border-radius: 8px;
-      font-size: 12px;
-      color: #166534;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .secure-delete-btn {
-      margin-top: 10px;
-      width: 100%;
-      padding: 10px;
-      background: #dc2626;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .secure-delete-btn:hover {
-      background: #b91c1c;
-    }
-
-    .secure-delete-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .delete-result {
-      margin-top: 10px;
-      padding: 10px 14px;
-      background: #fef3c7;
-      border: 1px solid #fbbf24;
-      border-radius: 8px;
-      font-size: 12px;
-      color: #92400e;
-    }
-
-    .delete-result-success {
-      background: #f0fdf4;
-      border-color: #86efac;
-      color: #166534;
-    }
+    .btn:hover { background: #1d4ed8; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error { margin-top: 12px; padding: 10px 12px; background: #3f1212; border: 1px solid #7f1d1d; border-radius: 8px; font-size: 13px; color: #fca5a5; }
+    .success { margin-top: 12px; padding: 10px 12px; background: #052e16; border: 1px solid #14532d; border-radius: 8px; font-size: 13px; color: #86efac; }
+    .footer { text-align: center; margin-top: 16px; font-size: 12px; color: #475569; }
   </style>
 </head>
-
 <body>
   <div id="root"></div>
-
   <script type="text/babel">
+    const API = "http://localhost:8080";
+
     function App() {
-      // ── Encryption state ──
-      const [encFile, setEncFile] = React.useState(null);
-      const [key, setKey] = React.useState(
-        localStorage.getItem("enc_key") || "",
-      );
-      const [iv, setIv] = React.useState(
-        localStorage.getItem("enc_iv") || "",
-      );
-      const [encLoading, setEncLoading] = React.useState(false);
-      const [encryptedFileName, setEncryptedFileName] = React.useState("");
-      const [secureNote, setSecureNote] = React.useState("");
-      const [deleteLoading, setDeleteLoading] = React.useState(false);
-      const [deleteResult, setDeleteResult] = React.useState("");
+      const [tab, setTab] = React.useState("login");
+      const [username, setUsername] = React.useState("");
+      const [password, setPassword] = React.useState("");
+      const [loading, setLoading] = React.useState(false);
+      const [error, setError] = React.useState("");
+      const [success, setSuccess] = React.useState("");
 
-      // ── Decryption state ──
-      const [decFile, setDecFile] = React.useState(null);
-      const [decKey, setDecKey] = React.useState(
-        localStorage.getItem("enc_key") || "",
-      );
-      const [decIv, setDecIv] = React.useState(
-        localStorage.getItem("enc_iv") || "",
-      );
-      const [decLoading, setDecLoading] = React.useState(false);
-      const [decMessage, setDecMessage] = React.useState("");
-      const [decError, setDecError] = React.useState("");
-
-      // Sync decryption inputs when encryption produces new keys
       React.useEffect(() => {
-        setDecKey(key);
-        setDecIv(iv);
-      }, [key, iv]);
+        const token = localStorage.getItem("vl_token");
+        if (token) window.location.href = "workspace.html";
+      }, []);
 
-      const encryptFile = async () => {
-        if (!encFile) return;
+      const switchTab = (t) => { setTab(t); setError(""); setSuccess(""); };
 
-        setEncLoading(true);
-
+      const submit = async () => {
+        setError(""); setSuccess("");
+        if (!username.trim() || !password) { setError("Please fill in all fields"); return; }
+        setLoading(true);
         try {
-          const arrayBuffer = await encFile.arrayBuffer();
-
-          const res = await fetch("http://localhost:8080/encrypt", {
+          const res = await fetch(`${API}/auth/${tab}`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/octet-stream",
-              "x-filename": encFile.name,
-            },
-            body: arrayBuffer,
-          });
-
-          const data = await res.json();
-
-          localStorage.setItem("enc_key", data.privateKey);
-          localStorage.setItem("enc_iv", data.iv);
-
-          setKey(data.privateKey);
-          setIv(data.iv);
-          setEncryptedFileName(data.encryptedFileName || "");
-          setSecureNote(data.secureNote || "");
-          setDeleteResult("");
-        } catch (err) {
-          console.error("Encryption failed:", err);
-        } finally {
-          setEncLoading(false);
-        }
-      };
-
-      const decryptFile = async () => {
-        if (!decFile || !decKey || !decIv) return;
-
-        setDecLoading(true);
-        setDecMessage("");
-        setDecError("");
-
-        try {
-          const arrayBuffer = await decFile.arrayBuffer();
-
-          const res = await fetch("http://localhost:8080/decrypt", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/octet-stream",
-              "x-private-key": decKey.trim(),
-              "x-iv": decIv.trim(),
-              "x-filename": decFile.name.replace(/\.\d+-[a-f0-9]+\.enc$/, ""),
-            },
-            body: arrayBuffer,
-          });
-
-          if (!res.ok) {
-            const errData = await res.json();
-            setDecError(errData.error || "Decryption failed");
-            return;
-          }
-
-          const blob = await res.blob();
-
-          // Extract original filename from Content-Disposition or derive from .enc name
-          let filename = decFile.name.replace(/\.\d+-[a-f0-9]+\.enc$/, "");
-          if (!filename || filename === decFile.name) {
-            filename = "decrypted_file";
-          }
-
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-
-          setDecMessage("File decrypted and downloaded successfully!");
-        } catch (err) {
-          console.error("Decryption failed:", err);
-          setDecError("Decryption request failed. Check console for details.");
-        } finally {
-          setDecLoading(false);
-        }
-      };
-
-      const clearKeys = () => {
-        localStorage.removeItem("enc_key");
-        localStorage.removeItem("enc_iv");
-        setKey("");
-        setIv("");
-        setEncryptedFileName("");
-        setSecureNote("");
-        setDeleteResult("");
-      };
-
-      const secureDeleteFile = async () => {
-        if (!encryptedFileName) return;
-        setDeleteLoading(true);
-        setDeleteResult("");
-        try {
-          const res = await fetch("http://localhost:8080/secure-delete", {
-            method: "POST",
-            headers: {
-              "x-filename": encryptedFileName,
-            },
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: username.trim(), password }),
           });
           const data = await res.json();
-          if (res.ok) {
-            setDeleteResult(
-              `🗑️ File securely deleted: ${data.passes} passes, ${data.bytesOverwritten.toLocaleString()} bytes overwritten.`,
-            );
-            setEncryptedFileName("");
-          } else {
-            setDeleteResult(`❌ ${data.error}`);
-          }
-        } catch (err) {
-          setDeleteResult("❌ Secure delete request failed.");
+          if (!res.ok) { setError(data.error || "Request failed"); return; }
+          localStorage.setItem("vl_token", data.token);
+          localStorage.setItem("vl_username", data.username);
+          window.location.href = "workspace.html";
+        } catch {
+          setError("Cannot reach the server. Make sure the backend is running.");
         } finally {
-          setDeleteLoading(false);
+          setLoading(false);
         }
       };
+
+      const onKey = (e) => { if (e.key === "Enter") submit(); };
 
       return (
-        <div className="container">
-          {/* ── Encryption Card ── */}
-          <div className="card">
-            <div className="title">Secure File Encryption</div>
-            <div className="subtitle">
-              Upload a file to encrypt it securely using AES encryption.
-            </div>
-
-            <input
-              type="file"
-              className="file-input"
-              onChange={(e) => setEncFile(e.target.files[0])}
-            />
-
-            <button
-              type="button"
-              className="button"
-              disabled={!encFile || encLoading}
-              onClick={encryptFile}
-            >
-              {encLoading ? "Encrypting..." : "Encrypt File"}
-            </button>
-
-            {key && (
-              <div className="result">
-                <div className="label">Private Key</div>
-                <div className="value">{key}</div>
-
-                <div className="label">Initialization Vector (IV)</div>
-                <div className="value">{iv}</div>
-
-                <button className="clear-btn" onClick={clearKeys}>
-                  Clear keys
-                </button>
-              </div>
-            )}
-
-            {secureNote && (
-              <div className="secure-badge">
-                🛡️ {secureNote}
-              </div>
-            )}
-
-            {encryptedFileName && (
-              <button
-                type="button"
-                className="secure-delete-btn"
-                disabled={deleteLoading}
-                onClick={secureDeleteFile}
-              >
-                {deleteLoading
-                  ? "Securely Deleting..."
-                  : "🗑️ Secure Delete from Server"}
-              </button>
-            )}
-
-            {deleteResult && (
-              <div
-                className={`delete-result ${deleteResult.startsWith("🗑️")
-                    ? "delete-result-success"
-                    : ""
-                  }`}
-              >
-                {deleteResult}
-              </div>
-            )}
-
-            <div className="footer-note">
-              Keys are stored locally in your browser.
-            </div>
+        <div className="page">
+          <div className="logo">
+            <div className="logo-icon">🔐</div>
+            <div className="logo-text">VaultLock</div>
+            <div className="logo-sub">End-to-end encrypted file storage</div>
           </div>
-
-          {/* ── Decryption Card ── */}
           <div className="card">
-            <div className="title">Secure File Decryption</div>
-            <div className="subtitle">
-              Upload an encrypted file and provide the key & IV to decrypt.
+            <div className="tabs">
+              <button className={`tab ${tab === "login" ? "active" : ""}`} onClick={() => switchTab("login")}>Sign In</button>
+              <button className={`tab ${tab === "register" ? "active" : ""}`} onClick={() => switchTab("register")}>Register</button>
             </div>
-
-            <input
-              type="file"
-              className="file-input"
-              accept=".enc"
-              onChange={(e) => setDecFile(e.target.files[0])}
-            />
-
-            <div className="input-label">Private Key</div>
-            <input
-              type="text"
-              className="text-input"
-              placeholder="Paste your 64-character hex key"
-              value={decKey}
-              onChange={(e) => setDecKey(e.target.value)}
-            />
-
-            <div className="input-label">Initialization Vector (IV)</div>
-            <input
-              type="text"
-              className="text-input"
-              placeholder="Paste your 32-character hex IV"
-              value={decIv}
-              onChange={(e) => setDecIv(e.target.value)}
-            />
-
-            <button
-              type="button"
-              className="button button-decrypt"
-              disabled={!decFile || !decKey || !decIv || decLoading}
-              onClick={decryptFile}
-            >
-              {decLoading ? "Decrypting..." : "Decrypt File"}
+            <div className="field">
+              <label>Username</label>
+              <input type="text" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={onKey} placeholder="Enter your username" autoFocus />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={onKey} placeholder="Enter your password" />
+            </div>
+            <button className="btn" onClick={submit} disabled={loading}>
+              {loading ? (tab === "login" ? "Signing in..." : "Creating account...") : (tab === "login" ? "Sign In" : "Create Account")}
             </button>
-
-            {decMessage && (
-              <div className="result result-success">
-                <div className="value">{decMessage}</div>
-              </div>
-            )}
-
-            {decError && (
-              <div className="result result-error">
-                <div className="value" style={{ color: "#dc2626" }}>
-                  {decError}
-                </div>
-              </div>
-            )}
-
-            <div className="footer-note">
-              The decrypted file will download automatically.
-            </div>
+            {error && <div className="error">{error}</div>}
+            {success && <div className="success">{success}</div>}
           </div>
+          <div className="footer">AES-256-CBC · JWT Auth · Files encrypted in-memory</div>
         </div>
       );
     }
@@ -519,5 +135,4 @@
     ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
-
 </html>
