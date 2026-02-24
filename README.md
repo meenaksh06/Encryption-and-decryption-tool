@@ -10,21 +10,21 @@ The project has evolved from Phase 1 (Encryption only) to a fully-featured secur
 
 ## Key Features
 
-### 🛡️ Core Cryptography
+### Core Cryptography
 - **AES-256-CBC Encryption**: In-memory streaming encryption utilizing Node's built-in `crypto` APIs.
 - **Zero-Knowledge Architecture**: Plaintext is never written to disk. The server never persists your keys; decryption keys are single-use or handled client-side/via memory.
 - **Data Integrity**: SHA-256 digesting to guarantee files haven't been tampered with or corrupted on disk.
 - **Secure File Deletion**: 3-pass overwrite mechanism (Random → Zero → Random) with hardware `fsync()` flushing before OS unlinking, protecting against basic data recovery (Gutmann method inspired).
 
-### 📁 The Secure Drive
+### The Secure Drive
 - **Magic-Byte Defense**: Multi-tier file validation mechanism that identifies internal structure, completely blocking arbitrary executables (PE, ELF, Mach-O) even if extensions are spoofed.
 - **OS-Level Isolation**: Hardened file access. Encrypted files are stored on disk with `0600` permissions inside per-user `0700` directories.
 
-### 💬 Secure Real-Time Chat & Vault
+### Secure Real-Time Chat & Vault
 - **WebSocket E2EE-Ready Chat**: Private real-time messaging verified via JSON Web Tokens middleware.
 - **Personal Key Vault**: Secure repository within the SQLite Database holding AES-256 encrypted labels, tokens, or plaintext credentials.
 
-### 📊 Audit & Reliability 
+### Audit & Reliability 
 - **Centralized Audit Logging**: A chronological `audit.log` (JSON-lines) records authentication lifecycles, unauthorized access attempts, and encryptions/decryptions.
 - **Rate Limiting**: Defends global API boundaries and throttles heavy cryptographic procedures (IP-based limits).
 
