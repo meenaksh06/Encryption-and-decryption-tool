@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workspace — VaultLock</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: #1e2130; border-bottom: 1px solid #2d3348; }
+    .nav-brand { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .nav-links { display: flex; align-items: center; gap: 16px; }
+    .nav-link { font-size: 13px; color: #94a3b8; text-decoration: none; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: background 0.2s; border: none; background: none; }
+    .nav-link:hover { background: #2d3348; color: #e2e8f0; }
+    .nav-link.active { color: #fff; background: #2d3348; }
+    .nav-user { font-size: 12px; color: #64748b; }
+    .logout-btn { font-size: 12px; color: #ef4444; cursor: pointer; border: none; background: none; padding: 6px 10px; border-radius: 6px; }
+    .logout-btn:hover { background: #3f1212; }
+    .main { padding: 28px; max-width: 1100px; margin: 0 auto; }
+    .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+    .tabs { display: flex; gap: 4px; background: #131620; border-radius: 8px; padding: 4px; width: fit-content; margin-bottom: 24px; }
+    .tab { padding: 8px 20px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; background: transparent; color: #64748b; transition: all 0.2s; }
+    .tab.active { background: #2563eb; color: #fff; }
+    .card { background: #1e2130; border: 1px solid #2d3348; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .section-label { font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 10px; }
+    .drop-zone {
+      border: 2px dashed #2d3348; border-radius: 10px; padding: 32px 20px;
+      text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #2563eb; background: #1a2340; }
+    .drop-zone input { display: none; }
+    .drop-icon { font-size: 28px; margin-bottom: 8px; }
+    .drop-text { font-size: 14px; color: #94a3b8; }
+    .drop-sub { font-size: 12px; color: #475569; margin-top: 4px; }
+    .file-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .file-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #131620; border-radius: 8px; font-size: 13px; }
+    .file-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+    .file-size { color: #64748b; font-size: 12px; margin-left: 8px; flex-shrink: 0; }
+    .remove-btn { border: none; background: none; color: #475569; cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+    .remove-btn:hover { background: #3f1212; color: #ef4444; }
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: #7f1d1d; color: #fca5a5; }
+    .btn-danger:hover { background: #991b1b; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .actions-row { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
+    .checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #94a3b8; cursor: pointer; }
+    .checkbox-label input { accent-color: #2563eb; width: 14px; height: 14px; cursor: pointer; }
+    .results-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+    .results-table th { text-align: left; padding: 10px 12px; border-bottom: 1px solid #2d3348; color: #64748b; font-weight: 600; }
+    .results-table td { padding: 10px 12px; border-bottom: 1px solid #1a1f2e; vertical-align: top; }
+    .results-table tr:last-child td { border-bottom: none; }
+    .mono { font-family: monospace; word-break: break-all; color: #7dd3fc; }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-ok { background: #052e16; color: #86efac; }
+    .status-err { background: #3f1212; color: #fca5a5; }
+    .status-pending { background: #1e3a5f; color: #93c5fd; }
+    .status-encrypting { background: #2d2a0a; color: #fcd34d; }
+    .integrity-pass { color: #86efac; }
+    .integrity-fail { color: #f87171; }
+    .progress-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; margin-top: 10px; }
+    .dec-table-wrapper { overflow-x: auto; }
+    .dec-input { width: 100%; padding: 6px 8px; background: #131620; border: 1px solid #2d3348; border-radius: 6px; color: #e2e8f0; font-family: monospace; font-size: 11px; outline: none; }
+    .dec-input:focus { border-color: #2563eb; }
+    .info-note { font-size: 12px; color: #475569; margin-top: 8px; }
+    .copy-btn { border: none; background: #2d3348; color: #94a3b8; padding: 2px 6px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 4px; }
+    .copy-btn:hover { background: #374151; color: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const API = "http://localhost:8080";
+
+    function u8ToB64(bytes) {
+      let s = ""; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s);
+    }
+    function b64ToU8(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
+
+    async function deriveVaultKey(password, saltB64) {
+      const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+      return crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: b64ToU8(saltB64), iterations: 310000, hash: "SHA-256" },
+        base, { name: "AES-GCM", length: 256 }, false, ["encrypt"]
+      );
+    }
+
+    async function encryptForVault(vaultKey, payload) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, vaultKey, new TextEncoder().encode(JSON.stringify(payload)));
+      return { encrypted_data: u8ToB64(new Uint8Array(ct)), enc_iv: u8ToB64(iv) };
+    }
+
+    async function saveToVault(token, label, key, iv) {
+      const saltRes = await fetch(`${API}/vault/salt`, { headers: { Authorization: `Bearer ${token}` } });
+      const { salt } = await saltRes.json();
+      const pwd = window.prompt(`🔐 Vault password to save key for "${label}":`);
+      if (!pwd) return;
+      const vaultKey = await deriveVaultKey(pwd, salt);
+      const { encrypted_data, enc_iv } = await encryptForVault(vaultKey, { key, iv, note: `Encrypted ${new Date().toLocaleDateString()}` });
+      const res = await fetch(`${API}/vault/entries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ label, encrypted_data, enc_iv }),
+      });
+      if (res.ok) alert(`✓ Key for "${label}" saved to Vault!`);
+      else alert("Failed to save to Vault.");
+    }
+
+    function fmt(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+
+    function Nav({ username }) {
+      const logout = () => {
+        localStorage.removeItem("vl_token");
+        localStorage.removeItem("vl_username");
+        window.location.href = "index.html";
+      };
+      return (
+        <nav>
+          <div className="nav-brand">🔐 VaultLock</div>
+          <div className="nav-links">
+            <span className="nav-link active">Workspace</span>
+            <a className="nav-link" href="drive.html">Drive</a>
+            <a className="nav-link" href="chat.html">Chat</a>
+            <a className="nav-link" href="vault.html">🔐 Vault</a>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="nav-user">👤 {username}</span>
+            <button className="logout-btn" onClick={logout}>Sign out</button>
+          </div>
+        </nav>
+      );
+    }
+
+    function EncryptTab({ token }) {
+      const [files, setFiles] = React.useState([]);
+      const [saveToDrive, setSaveToDrive] = React.useState(true);
+      const [results, setResults] = React.useState([]);
+      const [running, setRunning] = React.useState(false);
+      const [drag, setDrag] = React.useState(false);
+      const inputRef = React.useRef();
+
+      const ALLOWED_EXT = new Set([".txt",".csv",".json",".xml",".pdf",".jpg",".jpeg",".png",".gif",".webp",".svg",".mp4",".mov",".avi",".mkv",".webm",".mp3",".wav",".ogg",".flac",".zip",".tar",".gz",".7z",".doc",".docx",".xls",".xlsx",".ppt",".pptx",".odt",".ods",".odp",".md"]);
+
+      const addFiles = (incoming) => {
+        const valid = Array.from(incoming).filter(f => {
+          const ext = "." + f.name.split(".").pop().toLowerCase();
+          return ALLOWED_EXT.has(ext);
+        });
+        setFiles(prev => {
+          const names = new Set(prev.map(f => f.name));
+          return [...prev, ...valid.filter(f => !names.has(f.name))];
+        });
+      };
+
+      const onDrop = (e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); };
+
+      const remove = (name) => {
+        setFiles(prev => prev.filter(f => f.name !== name));
+        setResults(prev => prev.filter(r => r.name !== name));
+      };
+
+      const encryptAll = async () => {
+        if (!files.length) return;
+        setRunning(true);
+        const initial = files.map(f => ({ name: f.name, size: f.size, status: "encrypting", key: "", iv: "", sha256: "", encName: "" }));
+        setResults(initial);
+
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          try {
+            const buf = await f.arrayBuffer();
+            const res = await fetch(`${API}/encrypt`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/octet-stream",
+                "x-filename": f.name,
+                "x-save-to-drive": String(saveToDrive),
+                "Authorization": `Bearer ${token}`,
+              },
+              body: buf,
+            });
+
+            if (!res.ok) {
+              const err = await res.json();
+              setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "error", error: err.error } : r));
+              continue;
+            }
+
+            const key = res.headers.get("X-Private-Key");
+            const iv = res.headers.get("X-IV");
+            const sha256 = res.headers.get("X-SHA256");
+            const encName = res.headers.get("X-Encrypted-Filename") || f.name + ".enc";
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = encName;
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+
+            setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "ok", key, iv, sha256, encName } : r));
+          } catch (e) {
+            setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "error", error: "Network error" } : r));
+          }
+        }
+        setRunning(false);
+      };
+
+      const done = results.filter(r => r.status === "ok").length;
+      const total = results.length;
+
+      return (
+        <div>
+          <div className="card">
+            <div className="section-label">SELECT FILES TO ENCRYPT</div>
+            <div
+              className={`drop-zone ${drag ? "drag-over" : ""}`}
+              onDragOver={e => { e.preventDefault(); setDrag(true); }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={onDrop}
+              onClick={() => inputRef.current.click()}
+            >
+              <input ref={inputRef} type="file" multiple onChange={e => addFiles(e.target.files)} />
+              <div className="drop-icon">📁</div>
+              <div className="drop-text">Click to select or drag & drop files</div>
+              <div className="drop-sub">Documents, images, audio, video, archives — max 100 MB each</div>
+            </div>
+
+            {files.length > 0 && (
+              <div className="file-list">
+                {files.map(f => (
+                  <div className="file-item" key={f.name}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                      <span className="file-name">{f.name}</span>
+                      <span className="file-size">{fmt(f.size)}</span>
+                    </div>
+                    <button className="remove-btn" onClick={() => remove(f.name)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="actions-row">
+              <button className="btn btn-primary" disabled={!files.length || running} onClick={encryptAll}>
+                {running ? `Encrypting ${done}/${total}...` : `Encrypt ${files.length || ""} File${files.length !== 1 ? "s" : ""}`}
+              </button>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={saveToDrive} onChange={e => setSaveToDrive(e.target.checked)} />
+                Save to Drive
+              </label>
+              {files.length > 0 && !running && (
+                <button className="btn btn-sm" style={{ background: "#2d3348", color: "#94a3b8" }} onClick={() => { setFiles([]); setResults([]); }}>Clear all</button>
+              )}
+            </div>
+            <div className="info-note">Each file is encrypted independently with a unique AES-256 key and IV.</div>
+          </div>
+
+          {results.length > 0 && (
+            <div className="card">
+              <div className="section-label">ENCRYPTION RESULTS</div>
+              <div style={{ overflowX: "auto" }}>
+                <table className="results-table">
+                  <thead>
+                    <tr>
+                      <th>File</th>
+                      <th>Status</th>
+                      <th>Private Key</th>
+                      <th>IV</th>
+                      <th>SHA-256</th>
+                      <th>Vault</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((r, i) => (
+                      <tr key={i}>
+                        <td><div style={{ fontWeight: 500 }}>{r.name}</div><div style={{ color: "#475569", fontSize: 11 }}>{fmt(r.size)}</div></td>
+                        <td>
+                          <span className={`status-badge ${r.status === "ok" ? "status-ok" : r.status === "error" ? "status-err" : "status-encrypting"}`}>
+                            {r.status === "ok" ? "✓ Done" : r.status === "error" ? "✗ Error" : "⟳ Encrypting"}
+                          </span>
+                          {r.error && <div style={{ color: "#f87171", fontSize: 11, marginTop: 4 }}>{r.error}</div>}
+                        </td>
+                        <td>
+                          {r.key && (
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                              <span className="mono" style={{ fontSize: 10 }}>{r.key.slice(0, 16)}…</span>
+                              <button className="copy-btn" onClick={() => copyText(r.key)}>copy</button>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {r.iv && (
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                              <span className="mono" style={{ fontSize: 10 }}>{r.iv.slice(0, 16)}…</span>
+                              <button className="copy-btn" onClick={() => copyText(r.iv)}>copy</button>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {r.sha256 && (
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                              <span className="mono" style={{ fontSize: 10 }}>{r.sha256.slice(0, 16)}…</span>
+                              <button className="copy-btn" onClick={() => copyText(r.sha256)}>copy</button>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {r.status === "ok" && (
+                            <button className="copy-btn" style={{ background: "#4c1d95", color: "#c4b5fd", padding: "4px 8px" }}
+                              onClick={() => saveToVault(token, r.name, r.key, r.iv)}>
+                              🔒 Save
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="info-note">⚠ Save your keys — they are NOT stored on the server. Use "🔒 Save" to store them securely in your Key Vault.</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function DecryptTab({ token }) {
+      const [files, setFiles] = React.useState([]);
+      const [credentials, setCredentials] = React.useState({});
+      const [results, setResults] = React.useState([]);
+      const [running, setRunning] = React.useState(false);
+      const [drag, setDrag] = React.useState(false);
+      const inputRef = React.useRef();
+
+      const addFiles = (incoming) => {
+        const valid = Array.from(incoming).filter(f => f.name.endsWith(".enc"));
+        setFiles(prev => {
+          const names = new Set(prev.map(f => f.name));
+          return [...prev, ...valid.filter(f => !names.has(f.name))];
+        });
+      };
+
+      const onDrop = (e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); };
+
+      const setCred = (name, field, val) => {
+        setCredentials(prev => ({ ...prev, [name]: { ...(prev[name] || {}), [field]: val } }));
+      };
+
+      const remove = (name) => {
+        setFiles(prev => prev.filter(f => f.name !== name));
+        setCredentials(prev => { const c = { ...prev }; delete c[name]; return c; });
+        setResults(prev => prev.filter(r => r.name !== name));
+      };
+
+      const decryptAll = async () => {
+        if (!files.length) return;
+        setRunning(true);
+        const initial = files.map(f => ({ name: f.name, status: "decrypting", integrity: null, error: "" }));
+        setResults(initial);
+
+        for (let i = 0; i < files.length; i++) {
+          const f = files[i];
+          const cred = credentials[f.name] || {};
+          const key = (cred.key || "").trim();
+          const iv = (cred.iv || "").trim();
+          const expectedHash = (cred.hash || "").trim();
+
+          if (!key || !iv) {
+            setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "error", error: "Key and IV are required" } : r));
+            continue;
+          }
+          if (key.length !== 64 || iv.length !== 32) {
+            setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "error", error: "Key must be 64 hex chars, IV 32 hex chars" } : r));
+            continue;
+          }
+
+          try {
+            const originalName = f.name.replace(/\.\d+-[a-f0-9]+\.enc$/, "");
+            const buf = await f.arrayBuffer();
+            const res = await fetch(`${API}/decrypt`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/octet-stream",
+                "x-private-key": key,
+                "x-iv": iv,
+                "x-filename": originalName || "decrypted_file",
+                "Authorization": `Bearer ${token}`,
+              },
+              body: buf,
+            });
+
+            if (!res.ok) {
+              const err = await res.json();
+              setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "error", error: err.error } : r));
+              continue;
+            }
+
+            const decryptedHash = res.headers.get("X-Decrypted-SHA256");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = originalName || "decrypted_file";
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+
+            let integrity = null;
+            if (expectedHash && decryptedHash) {
+              integrity = expectedHash.toLowerCase() === decryptedHash.toLowerCase() ? "pass" : "fail";
+            }
+
+            setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "ok", integrity, hash: decryptedHash } : r));
+          } catch {
+            setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "error", error: "Network error" } : r));
+          }
+        }
+        setRunning(false);
+      };
+
+      const done = results.filter(r => r.status === "ok").length;
+      const total = results.length;
+
+      return (
+        <div>
+          <div className="card">
+            <div className="section-label">SELECT ENCRYPTED FILES (.enc)</div>
+            <div
+              className={`drop-zone ${drag ? "drag-over" : ""}`}
+              onDragOver={e => { e.preventDefault(); setDrag(true); }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={onDrop}
+              onClick={() => inputRef.current.click()}
+            >
+              <input ref={inputRef} type="file" multiple accept=".enc" onChange={e => addFiles(e.target.files)} />
+              <div className="drop-icon">🔒</div>
+              <div className="drop-text">Click to select or drag & drop .enc files</div>
+            </div>
+
+            {files.length > 0 && (
+              <div>
+                <div style={{ marginTop: 16, marginBottom: 8, fontSize: 12, color: "#64748b" }}>Enter the key and IV for each file. SHA-256 is optional (for integrity check).</div>
+                <div className="dec-table-wrapper">
+                  <table className="results-table">
+                    <thead>
+                      <tr>
+                        <th>File</th>
+                        <th>Private Key (64 hex)</th>
+                        <th>IV (32 hex)</th>
+                        <th>SHA-256 (optional)</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {files.map((f, i) => {
+                        const r = results.find(x => x.name === f.name);
+                        return (
+                          <tr key={f.name}>
+                            <td><div style={{ fontWeight: 500, fontSize: 12 }}>{f.name}</div></td>
+                            <td><input className="dec-input" placeholder="64-char hex key" value={(credentials[f.name]?.key) || ""} onChange={e => setCred(f.name, "key", e.target.value)} /></td>
+                            <td><input className="dec-input" placeholder="32-char hex IV" value={(credentials[f.name]?.iv) || ""} onChange={e => setCred(f.name, "iv", e.target.value)} /></td>
+                            <td><input className="dec-input" placeholder="64-char SHA-256" value={(credentials[f.name]?.hash) || ""} onChange={e => setCred(f.name, "hash", e.target.value)} /></td>
+                            <td><button className="remove-btn" onClick={() => remove(f.name)}>✕</button></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="actions-row">
+              <button className="btn btn-primary" disabled={!files.length || running} onClick={decryptAll}>
+                {running ? `Decrypting ${done}/${total}...` : `Decrypt ${files.length || ""} File${files.length !== 1 ? "s" : ""}`}
+              </button>
+              {files.length > 0 && !running && (
+                <button className="btn btn-sm" style={{ background: "#2d3348", color: "#94a3b8" }} onClick={() => { setFiles([]); setCredentials({}); setResults([]); }}>Clear all</button>
+              )}
+            </div>
+          </div>
+
+          {results.length > 0 && (
+            <div className="card">
+              <div className="section-label">DECRYPTION RESULTS</div>
+              <table className="results-table">
+                <thead><tr><th>File</th><th>Status</th><th>Integrity</th><th>SHA-256</th></tr></thead>
+                <tbody>
+                  {results.map((r, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 500 }}>{r.name}</td>
+                      <td>
+                        <span className={`status-badge ${r.status === "ok" ? "status-ok" : r.status === "error" ? "status-err" : "status-encrypting"}`}>
+                          {r.status === "ok" ? "✓ Done" : r.status === "error" ? "✗ Error" : "⟳ Decrypting"}
+                        </span>
+                        {r.error && <div style={{ color: "#f87171", fontSize: 11, marginTop: 4 }}>{r.error}</div>}
+                      </td>
+                      <td>
+                        {r.integrity === "pass" && <span className="integrity-pass">✓ Verified</span>}
+                        {r.integrity === "fail" && <span className="integrity-fail">✗ Tampered</span>}
+                        {r.integrity === null && r.status === "ok" && <span style={{ color: "#475569" }}>No hash provided</span>}
+                      </td>
+                      <td>{r.hash && <span className="mono" style={{ fontSize: 10 }}>{r.hash.slice(0, 20)}…</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function App() {
+      const token = localStorage.getItem("vl_token");
+      const username = localStorage.getItem("vl_username") || "User";
+      const [tab, setTab] = React.useState("encrypt");
+
+      React.useEffect(() => {
+        if (!token) window.location.href = "index.html";
+      }, []);
+
+      if (!token) return null;
+
+      return (
+        <div>
+          <Nav username={username} />
+          <div className="main">
+            <div className="page-title">Workspace</div>
+            <div className="page-sub">Encrypt or decrypt multiple files at once</div>
+            <div className="tabs">
+              <button className={`tab ${tab === "encrypt" ? "active" : ""}`} onClick={() => setTab("encrypt")}>🔐 Encrypt</button>
+              <button className={`tab ${tab === "decrypt" ? "active" : ""}`} onClick={() => setTab("decrypt")}>🔓 Decrypt</button>
+            </div>
+            {tab === "encrypt" ? <EncryptTab token={token} /> : <DecryptTab token={token} />}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
