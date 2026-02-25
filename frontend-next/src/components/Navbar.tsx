@@ -27,7 +27,7 @@ export default function Navbar() {
     { href: "/", label: "Home" },
     { href: "/workspace", label: "Workspace" },
     { href: "/drive", label: "Drive" },
-    { href: "/chat", label: "Chat" },
+    // { href: "/chat", label: "Chat" },
     { href: "/vault", label: "Vault" },
   ];
 

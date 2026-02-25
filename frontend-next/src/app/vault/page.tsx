@@ -462,7 +462,7 @@ export default function VaultPage() {
                 onChange={(e) => setNote(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-3 mb-4 text-black">
               <Input
                 label="AES Key (hex)"
                 placeholder="64-char hex key"

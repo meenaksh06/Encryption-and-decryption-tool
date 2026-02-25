@@ -215,7 +215,7 @@ export default function ActivityPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <Card>
-            <div className="text-3xl font-black text-white">{stats.total}</div>
+            <div className="text-3xl font-black text-black">{stats.total}</div>
             <div className="text-xs text-[var(--color-text-dim)] mt-1">Total Events</div>
           </Card>
           <Card>
@@ -328,13 +328,13 @@ export default function ActivityPage() {
                       className="border-b border-[var(--color-border)]/30 last:border-0 hover:bg-[var(--color-surface-hover)]/30 transition-colors"
                     >
                       <td className="py-4 px-6">
-                        <span className="text-sm text-[var(--color-text-muted)]">
+                        <span className="text-sm text-[var(--color-text-black)]">
                           {formatDate(log.timestamp)}
                         </span>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <span className={actionColors[log.action] || "text-white"}>
+                          <span className={actionColors[log.action] || "text-black"}>
                             {actionIcons[log.action] || <Activity className="w-4 h-4" />}
                           </span>
                           <span className="text-sm font-medium">{log.action}</span>
@@ -348,7 +348,7 @@ export default function ActivityPage() {
                       <td className="py-4 px-4">
                         <div className="text-sm">
                           {log.filename && (
-                            <div className="text-white truncate max-w-[200px]">{log.filename}</div>
+                            <div className="text-black truncate max-w-[200px]">{log.filename}</div>
                           )}
                           {log.sizeBytes && (
                             <div className="text-xs text-[var(--color-text-dim)]">

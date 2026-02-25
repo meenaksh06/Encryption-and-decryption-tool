@@ -609,19 +609,19 @@ function DecryptPanel({ token }: { token: string }) {
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <input
-                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
+                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-black outline-none focus:border-[var(--color-primary)] transition-colors"
                       placeholder="64-char hex key"
                       value={credentials[f.name]?.key || ""}
                       onChange={(e) => setCred(f.name, "key", e.target.value)}
                     />
                     <input
-                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
+                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-black outline-none focus:border-[var(--color-primary)] transition-colors"
                       placeholder="32-char hex IV"
                       value={credentials[f.name]?.iv || ""}
                       onChange={(e) => setCred(f.name, "iv", e.target.value)}
                     />
                     <input
-                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-white outline-none focus:border-[var(--color-primary)] transition-colors"
+                      className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] text-xs font-mono text-black outline-none focus:border-[var(--color-primary)] transition-colors"
                       placeholder="SHA-256 (optional)"
                       value={credentials[f.name]?.hash || ""}
                       onChange={(e) => setCred(f.name, "hash", e.target.value)}

@@ -23,7 +23,7 @@ const navItems = [
   { href: "/workspace", icon: Lock, label: "Workspace", authRequired: true },
   { href: "/drive", icon: HardDrive, label: "Drive", authRequired: true },
   { href: "/vault", icon: Key, label: "Vault", authRequired: true },
-  { href: "/chat", icon: MessageSquare, label: "Chat", authRequired: true },
+  // { href: "/chat", icon: MessageSquare, label: "Chat", authRequired: true },
   { href: "/activity", icon: Activity, label: "Activity", authRequired: true },
 ];
 
