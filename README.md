@@ -34,9 +34,6 @@ flowchart TD
 
 ## Key Features
 
-
-=======
-
 ### Core Cryptography
 
 - **AES-256-CBC Encryption**: In-memory streaming encryption utilizing Node's built-in `crypto` APIs.
