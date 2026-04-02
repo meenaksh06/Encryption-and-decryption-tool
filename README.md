@@ -39,7 +39,7 @@ flowchart TD
 - **AES-256-CBC Encryption**: In-memory streaming encryption utilizing Node's built-in `crypto` APIs.
 - **Zero-Knowledge Architecture**: Plaintext is never written to disk. The server never persists your keys; decryption keys are single-use or handled client-side/via memory.
 - **Data Integrity**: SHA-256 digesting to guarantee files haven't been tampered with or corrupted on disk.
-- **Secure File Deletion**: 3-pass overwrite mechanism (Random → Zero → Random) with hardware `fsync()` flushing before OS unlinking, protecting against basic data recovery (Gutmann method inspired).
+- **Secure File Deletion**: 3-pass overwrite mechanism (Random → Zero → Random) with hardware `fsync()` flushing before OS unlinking, protecting against basic data recovery.
 
 ### The Secure Drive
 - **Magic-Byte Defense**: Multi-tier file validation mechanism that identifies internal structure, completely blocking arbitrary executables (PE, ELF, Mach-O) even if extensions are spoofed.
