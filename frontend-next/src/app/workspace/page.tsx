@@ -22,11 +22,9 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
 import { Card, CardSection, Button, Badge, EmptyState } from "@/components/ui";
-import { getToken, formatBytes } from "@/lib/api";
+import { apiRequest, getToken, formatBytes } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import SaveToVaultModal from "@/components/SaveToVaultModal";
-
-const API = "http://localhost:8080";
 
 const ALLOWED_EXT = new Set([
   ".txt",".csv",".json",".xml",".pdf",".jpg",".jpeg",".png",".gif",".webp",
@@ -112,9 +110,18 @@ function EncryptPanel({ token }: { token: string }) {
 
   const addFiles = (incoming: FileList | null) => {
     if (!incoming) return;
+    const MAX_SIZE = 100 * 1024 * 1024; // 100MB
     const valid = Array.from(incoming).filter((f) => {
       const ext = "." + f.name.split(".").pop()?.toLowerCase();
-      return ALLOWED_EXT.has(ext);
+      if (!ALLOWED_EXT.has(ext)) {
+        showToast(`File type ${ext} not allowed`, "error");
+        return false;
+      }
+      if (f.size > MAX_SIZE) {
+        showToast(`File ${f.name} exceeds 100MB limit`, "error");
+        return false;
+      }
+      return true;
     });
     setFiles((prev) => {
       const names = new Set(prev.map((f) => f.name));
@@ -145,22 +152,21 @@ function EncryptPanel({ token }: { token: string }) {
       const f = files[i];
       try {
         const buf = await f.arrayBuffer();
-        const res = await fetch(`${API}/encrypt`, {
+        const res = await apiRequest("/encrypt", {
           method: "POST",
           headers: {
             "Content-Type": "application/octet-stream",
             "x-filename": f.name,
             "x-save-to-drive": String(saveToDrive),
-            Authorization: `Bearer ${token}`,
           },
           body: buf,
         });
 
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => ({ error: "Failed to parse error response" }));
           setResults((prev) =>
             prev.map((r, idx) =>
-              idx === i ? { ...r, status: "error", error: err.error } : r
+              idx === i ? { ...r, status: "error", error: err.error || "Encryption failed" } : r
             )
           );
           continue;
@@ -186,10 +192,10 @@ function EncryptPanel({ token }: { token: string }) {
             idx === i ? { ...r, status: "ok", key, iv, sha256, encName } : r
           )
         );
-      } catch {
+      } catch (err: any) {
         setResults((prev) =>
           prev.map((r, idx) =>
-            idx === i ? { ...r, status: "error", error: "Network error" } : r
+            idx === i ? { ...r, status: "error", error: err.message || "Network error" } : r
           )
         );
       }
@@ -374,7 +380,7 @@ function EncryptPanel({ token }: { token: string }) {
                       <td className="py-3 px-3">
                         {r.key && (
                           <div className="flex items-center gap-2">
-                            <code className="text-[10px] font-mono text-cyan-400">{r.key.slice(0, 16)}...</code>
+                            <code className="text-[10px] font-mono text-[var(--color-primary)]">{r.key.slice(0, 16)}...</code>
                             <CopyButton text={r.key} onCopy={() => showToast("Key copied!", "success")} />
                           </div>
                         )}
@@ -382,7 +388,7 @@ function EncryptPanel({ token }: { token: string }) {
                       <td className="py-3 px-3">
                         {r.iv && (
                           <div className="flex items-center gap-2">
-                            <code className="text-[10px] font-mono text-cyan-400">{r.iv.slice(0, 16)}...</code>
+                            <code className="text-[10px] font-mono text-[var(--color-primary)]">{r.iv.slice(0, 16)}...</code>
                             <CopyButton text={r.iv} onCopy={() => showToast("IV copied!", "success")} />
                           </div>
                         )}
@@ -492,23 +498,22 @@ function DecryptPanel({ token }: { token: string }) {
       try {
         const originalName = f.name.replace(/\.\d+-[a-f0-9]+\.enc$/, "");
         const buf = await f.arrayBuffer();
-        const res = await fetch(`${API}/decrypt`, {
+        const res = await apiRequest("/decrypt", {
           method: "POST",
           headers: {
             "Content-Type": "application/octet-stream",
             "x-private-key": key,
             "x-iv": iv,
             "x-filename": originalName || "decrypted_file",
-            Authorization: `Bearer ${token}`,
           },
           body: buf,
         });
 
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => ({ error: "Decryption failed" }));
           setResults((prev) =>
             prev.map((r, idx) =>
-              idx === i ? { ...r, status: "error", error: err.error } : r
+              idx === i ? { ...r, status: "error", error: err.error || "Decryption failed" } : r
             )
           );
           continue;
@@ -535,10 +540,10 @@ function DecryptPanel({ token }: { token: string }) {
             idx === i ? { ...r, status: "ok", integrity, hash: decryptedHash } : r
           )
         );
-      } catch {
+      } catch (err: any) {
         setResults((prev) =>
           prev.map((r, idx) =>
-            idx === i ? { ...r, status: "error", error: "Network error" } : r
+            idx === i ? { ...r, status: "error", error: err.message || "Network error" } : r
           )
         );
       }
@@ -559,7 +564,7 @@ function DecryptPanel({ token }: { token: string }) {
           <div
             className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300 ${
               drag
-                ? "border-[#00BFA6] bg-[#00BFA6]/5"
+                ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5"
                 : "border-[var(--color-border)] hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-hover)]/30"
             }`}
             onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
@@ -575,8 +580,8 @@ function DecryptPanel({ token }: { token: string }) {
               className="hidden"
               onChange={(e) => addFiles(e.target.files)}
             />
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[#00BFA6]/20 to-[#4B154D]/15 flex items-center justify-center mb-4">
-              <Unlock className="w-7 h-7 text-[#00BFA6]" />
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[var(--color-accent)]/20 to-[var(--color-primary)]/15 flex items-center justify-center mb-4">
+              <Unlock className="w-7 h-7 text-[var(--color-accent)]" />
             </div>
             <p className="text-sm font-medium text-[var(--color-text-muted)]">
               Click to select or drag & drop .enc files
@@ -597,7 +602,7 @@ function DecryptPanel({ token }: { token: string }) {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-[#00BFA6]" />
+                      <Lock className="w-4 h-4 text-[var(--color-accent)]" />
                       <span className="text-sm font-medium truncate">{f.name}</span>
                     </div>
                     <button
@@ -639,7 +644,7 @@ function DecryptPanel({ token }: { token: string }) {
             disabled={!files.length || running}
             loading={running}
             icon={<Unlock className="w-4 h-4" />}
-            className="bg-gradient-to-r from-[#00BFA6] to-[#009E8A] shadow-[#00BFA6]/20 hover:shadow-[#00BFA6]/30"
+             className="bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-hover)] shadow-[var(--color-accent)]/20 hover:shadow-[var(--color-accent)]/30"
           >
             {running
               ? `Decrypting ${done}/${total}...`
@@ -696,7 +701,7 @@ function DecryptPanel({ token }: { token: string }) {
                       )}
                     </td>
                     <td className="py-3 px-3">
-                      {r.hash && <code className="text-[10px] font-mono text-cyan-400">{r.hash.slice(0, 20)}...</code>}
+                       {r.hash && <code className="text-[10px] font-mono text-[var(--color-primary)]">{r.hash.slice(0, 20)}...</code>}
                     </td>
                   </tr>
                 ))}
@@ -744,9 +749,9 @@ export default function WorkspacePage() {
         </button>
         <button
           onClick={() => setTab("decrypt")}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
             tab === "decrypt"
-              ? "bg-gradient-to-r from-[#00BFA6] to-[#009E8A] text-white shadow-lg"
+              ? "bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-hover)] text-white shadow-lg"
               : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
           }`}
         >
