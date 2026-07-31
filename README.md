@@ -4,7 +4,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-WAL-blue.svg)
 
 ## Project Overview
-VaultLock is a comprehensive demonstration of **Operating System-level data protection, advanced cryptographic security, and real-time safe communication**. This system ensures that sensitive files are encrypted, stored securely, and completely scrubbed upon deletion. It enforces strong memory-level zero-knowledge operations where plain data never touches . 
+VaultLock is a comprehensive demonstration of **Operating System-level data protection, advanced cryptographic security, and real-time safe communication**. This system ensures that sensitive files are encrypted, stored securely, and completely scrubbed upon deletion. It enforces strong memory-level zero-knowledge operations where plain data never touches the disk. 
 
 The project has evolved from Phase 1 (Encryption only) to a fully-featured secure workspace encompassing Secure File Drive, an End-to-End Chat system, and a robust Password / Secrets Vault.
 
